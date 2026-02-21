@@ -462,12 +462,55 @@ footer {
     transform: translateY(0);
 }
 
+/* Hamburger Menu */
+.hamburger {
+    display: none;
+    font-size: 1.8rem;
+    color: var(--text-main);
+    cursor: pointer;
+    z-index: 1001;
+}
+
 /* Responsive */
 @media (max-width: 992px) {
+    .glass-nav {
+        padding: 0 20px;
+    }
+
+    nav ul.nav-links {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 70%;
+        height: 100vh;
+        background: rgba(10, 10, 12, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: right 0.4s ease;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        margin: 0;
+    }
+
+    nav ul.nav-links.active {
+        right: 0;
+    }
+
+    nav ul.nav-links li {
+        margin: 20px 0;
+    }
+
+    .hamburger {
+        display: block;
+    }
+
     .hero {
         flex-direction: column;
         text-align: center;
-        padding-top: 150px;
+        justify-content: center;
+        padding-top: 100px;
     }
 
     .hero h1 {
@@ -475,25 +518,66 @@ footer {
     }
 
     .hero p {
-        margin: 0 auto 40px;
+        margin: 0 auto 30px;
     }
 
     .hero-btns {
         justify-content: center;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
     }
 
-    .hero-img {
+    .hero-btns a {
         width: 100%;
-        margin-top: 50px;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 2.8rem;
     }
 
-    .glass-nav {
-        padding: 0 20px;
+    .hero p {
+        font-size: 1rem;
     }
 
-    nav ul {
-        display: none;
+    .section-header h2 {
+        font-size: 2.2rem;
     }
 
-    /* Mobile nav could be improved but keeping it simple for now */
+    .services {
+        padding: 60px 5%;
+    }
+
+    .calculator {
+        padding: 60px 5%;
+    }
+
+    .calculator-container {
+        padding: 30px 20px;
+    }
+
+    .input-group input {
+        font-size: 1rem;
+    }
+
+    .estimate-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .estimate-item .price {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .estimate-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero h1 {
+        font-size: 2.2rem;
+    }
 }
