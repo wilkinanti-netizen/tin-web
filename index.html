@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tins cars premium | Lujo y Confianza en cada Trayecto</title>
+    <meta name="description"
+        content="Disfruta de la mejor experiencia de transporte con Tins cars premium. Essentials, Executive y Signature Lux.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header>
+        <nav class="glass-nav">
+            <div class="logo">Tins <span>cars premium</span></div>
+            <ul>
+                <li><a href="#hero" data-i18n="nav_home">Inicio</a></li>
+                <li><a href="#services" data-i18n="nav_services">Servicios</a></li>
+                <li><a href="#calculator" data-i18n="nav_calculator">Calculadora</a></li>
+                <li><a href="#contact" class="btn-primary" data-i18n="nav_download">Descargar</a></li>
+                <li><button id="lang-toggle" class="btn-outline lang-btn">EN</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero" class="hero">
+            <div class="hero-content">
+                <h1 class="reveal"><span data-i18n="hero_title_1">Confianza que te transporta,</span> <span
+                        data-i18n="hero_title_2">lujo que te acompaña.</span></h1>
+                <p class="reveal-delay" data-i18n="hero_subtitle">Conectamos destinos con profesionalismo, seguridad y
+                    una flota diseñada para
+                    superar tus expectativas.</p>
+                <div class="hero-btns reveal-delay-2">
+                    <a href="#services" class="btn-outline" data-i18n="hero_btn_fleet">Ver Flota</a>
+                    <a href="#calculator" class="btn-primary" data-i18n="hero_btn_estimate">Estimar Tarifa</a>
+                </div>
+            </div>
+            </div>
+            <!-- The hero image is now a background in CSS -->
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="services">
+            <div class="section-header">
+                <h2 data-i18n="services_title">Nuestra Flota</h2>
+                <p data-i18n="services_subtitle">Elige el vehículo que mejor se adapte a tu necesidad.</p>
+            </div>
+
+            <div class="services-grid">
+                <!-- Essentials -->
+                <div class="service-card reveal">
+                    <div class="card-badge" data-i18n="badge_popular">Popular</div>
+                    <img src="assets/essentials.png" alt="Essentials">
+                    <div class="card-content">
+                        <h3>ESSENTIALS</h3>
+                        <p data-i18n="essentials_desc">Vehículo cómodo y elegante, pensado para brindarte una
+                            experiencia agradable y segura.</p>
+                        <ul class="features">
+                            <li><i class="fas fa-users"></i> <span data-i18n="feat_passengers_4">Hasta 4
+                                    pasajeros</span></li>
+                            <li><i class="fas fa-check-circle"></i> <span data-i18n="feat_ac">Aire Acondicionado</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- XL -->
+                <div class="service-card reveal">
+                    <img src="assets/essentialxl.png" alt="Essentials XL">
+                    <div class="card-content">
+                        <h3>ESSENTIALS XL</h3>
+                        <p data-i18n="xl_desc">Más espacio para viajes en grupo. Confort y amplitud en cada trayecto.
+                        </p>
+                        <ul class="features">
+                            <li><i class="fas fa-users"></i> <span data-i18n="feat_passengers_6">Hasta 6
+                                    pasajeros</span></li>
+                            <li><i class="fas fa-suitcase"></i> <span data-i18n="feat_space">Espacio extra</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Executive -->
+                <div class="service-card reveal">
+                    <div class="card-badge gold" data-i18n="badge_premium">Premium</div>
+                    <img src="assets/executive.png" alt="Executive">
+                    <div class="card-content">
+                        <h3>EXECUTIVE</h3>
+                        <p data-i18n="executive_desc">Conductores experimentados y vehículos de gama alta para un viaje
+                            confiable.</p>
+                        <ul class="features">
+                            <li><i class="fas fa-users"></i> <span data-i18n="feat_people_4">Hasta 4 personas</span>
+                            </li>
+                            <li><i class="fas fa-star"></i> <span data-i18n="feat_drivers">Conductores Top</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Signature Lux -->
+                <div class="service-card reveal">
+                    <div class="card-badge diamond" data-i18n="badge_luxury">Luxury</div>
+                    <img src="assets/signatuve.png" alt="Signature Lux">
+                    <div class="card-content">
+                        <h3>SIGNATURE LUX</h3>
+                        <p data-i18n="signature_desc">Lujo superior. Vehículos de alta gama para brindarte una
+                            experiencia inigualable.</p>
+                        <ul class="features">
+                            <li><i class="fas fa-users"></i> <span data-i18n="feat_people_6">Hasta 6 personas</span>
+                            </li>
+                            <li><i class="fas fa-crown"></i> <span data-i18n="feat_vip">Servicio VIP</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calculator Section -->
+        <section id="calculator" class="calculator">
+            <div class="calculator-container glass">
+                <div class="calc-header">
+                    <h2 data-i18n="calc_title">Calculadora de Tarifas</h2>
+                    <p data-i18n="calc_subtitle">Ingresa la distancia para estimar el costo de tu viaje.</p>
+                </div>
+
+                <div class="calc-body">
+                    <div class="input-group">
+                        <label for="distance" data-i18n="calc_label">Distancia (Millas)</label>
+                        <input type="number" id="distance" placeholder="Ej: 10" min="0" step="0.1">
+                    </div>
+
+                    <div class="estimate-grid">
+                        <div class="estimate-item" data-type="essentials">
+                            <span class="label">Essentials</span>
+                            <span class="price" id="price-essentials">$0.00</span>
+                        </div>
+                        <div class="estimate-item" data-type="xl">
+                            <span class="label">Essentials XL</span>
+                            <span class="price" id="price-xl">$0.00</span>
+                        </div>
+                        <div class="estimate-item" data-type="executive">
+                            <span class="label">Executive</span>
+                            <span class="price" id="price-executive">$0.00</span>
+                        </div>
+                        <div class="estimate-item" data-type="signature">
+                            <span class="label">Signature Lux</span>
+                            <span class="price" id="price-signature">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">Tins <span>cars premium</span></div>
+            <p data-i18n="footer_quote">"Conectamos destinos con confianza, lujo y profesionalismo que te acompaña."</p>
+            <div class="socials">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-facebook"></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 Tins cars premium. <span data-i18n="footer_rights">Todos los derechos reservados.</span>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
