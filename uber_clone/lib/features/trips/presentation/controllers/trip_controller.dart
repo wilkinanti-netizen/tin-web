@@ -11,6 +11,23 @@ import 'package:tincars/features/profile/presentation/controllers/profile_contro
 class TripController extends AsyncNotifier<void> {
   late TripRepository _repository;
 
+  static String statusToDbString(TripStatus status) {
+    switch (status) {
+      case TripStatus.requested:
+        return 'requested';
+      case TripStatus.accepted:
+        return 'accepted';
+      case TripStatus.arrived:
+        return 'arrived';
+      case TripStatus.inProgress:
+        return 'in_progress';
+      case TripStatus.completed:
+        return 'completed';
+      case TripStatus.cancelled:
+        return 'cancelled';
+    }
+  }
+
   @override
   FutureOr<void> build() {
     _repository = ref.read(tripRepositoryProvider);
@@ -56,9 +73,10 @@ class TripController extends AsyncNotifier<void> {
     String? cancellationReason,
   ) async {
     try {
+      final statusStr = statusToDbString(status);
       await _repository.updateTripStatus(
         tripId,
-        status,
+        statusStr, // Esto ahora es un String
         cancellationReason: cancellationReason,
       );
     } catch (e) {
@@ -136,6 +154,16 @@ final tripControllerProvider = AsyncNotifierProvider<TripController, void>(
 
 final requestedTripsProvider = StreamProvider<List<Trip>>((ref) {
   AppLogger.log('Provider: requestedTripsProvider escuchando cambios...');
+
+  // Si hay un viaje activo, NO buscamos nuevos viajes
+  final activeTripAsync = ref.watch(activeTripProvider);
+  if (activeTripAsync.value != null) {
+    AppLogger.log(
+      'Provider: Conductor en flujo de viaje activo, bloqueando nuevas ofertas.',
+    );
+    return Stream.value([]);
+  }
+
   // Watch driver profile to get active services
   final profileAsync = ref.watch(driverProfileProvider);
 
@@ -209,15 +237,21 @@ final requestedTripsProvider = StreamProvider<List<Trip>>((ref) {
                 print(
                   'Provider: ⚠️ No se pudo obtener la ubicación. MOSTRANDO TODOS LOS VIAJES SIN FILTRO DE DISTANCIA.',
                 );
-                return trips.where((t) => !ignored.contains(t.id)).toList();
+                return trips.where((t) {
+                  final ignoredPrice = ignored[t.id];
+                  if (ignoredPrice != null && t.price <= ignoredPrice)
+                    return false;
+                  return true;
+                }).toList();
               }
 
               final driverLoc = LatLng(position.latitude, position.longitude);
 
               final result = trips.where((trip) {
-                if (ignored.contains(trip.id)) {
+                final ignoredPrice = ignored[trip.id];
+                if (ignoredPrice != null && trip.price <= ignoredPrice) {
                   AppLogger.log(
-                    '⏭️ Omitiendo ${trip.id} (Ignorado por el conductor)',
+                    '⏭️ Omitiendo ${trip.id} (Ignorado con precio \$${ignoredPrice})',
                   );
                   return false;
                 }
@@ -245,37 +279,15 @@ final requestedTripsProvider = StreamProvider<List<Trip>>((ref) {
                 final tripType = trip.vehicleType.toLowerCase();
                 final serviceMatches = driverServices.contains(tripType);
 
-                AppLogger.log('📍 Viaje ${trip.id}:');
-                print(
-                  '   - Driver Loc: ${driverLoc.latitude}, ${driverLoc.longitude}',
-                );
-                print(
-                  '   - Pickup Loc: ${trip.pickupLocation.latitude}, ${trip.pickupLocation.longitude}',
-                );
-                AppLogger.log(
-                  '   - Distancia: ${distance.toStringAsFixed(2)}km',
-                );
-                AppLogger.log('   - Trip Type: $tripType');
-                AppLogger.log('   - Driver Services: $driverServices');
-                AppLogger.log(
-                  '   - ¿En rango (500km)?: ${isNear ? "SI ✅" : "NO ❌"}',
-                );
-                print(
-                  '   - ¿Servicio activado?: ${serviceMatches ? "SI ✅" : "NO ❌"}',
-                );
-
                 return isNear && serviceMatches;
               }).toList();
               AppLogger.log('🎯 Viajes finales en pantalla: ${result.length}');
-              AppLogger.log(
-                '===================================================',
-              );
               return result;
             } catch (e) {
               print(
-                'Provider: Error obteniendo posición del conductor: $e. Retornando viajes sin filtro de distancia.',
+                'Provider: Error en filtro: $e. Retornando viajes con filtro simple de ignorados.',
               );
-              return trips.where((t) => !ignored.contains(t.id)).toList();
+              return trips.where((t) => !ignored.containsKey(t.id)).toList();
             }
           });
     },
@@ -362,15 +374,21 @@ final todayDriverStatsProvider = StreamProvider<Map<String, double>>((ref) {
 });
 
 final ignoredTripsProvider =
-    NotifierProvider<IgnoredTripsNotifier, Set<String>>(
+    NotifierProvider<IgnoredTripsNotifier, Map<String, double>>(
       IgnoredTripsNotifier.new,
     );
 
-class IgnoredTripsNotifier extends Notifier<Set<String>> {
+class IgnoredTripsNotifier extends Notifier<Map<String, double>> {
   @override
-  Set<String> build() => {};
+  Map<String, double> build() => {};
 
-  void ignore(String tripId) {
-    state = {...state, tripId};
+  void ignore(String tripId, double currentPrice) {
+    state = {...state, tripId: currentPrice};
+  }
+
+  void unignore(String tripId) {
+    final newState = Map<String, double>.from(state);
+    newState.remove(tripId);
+    state = newState;
   }
 }

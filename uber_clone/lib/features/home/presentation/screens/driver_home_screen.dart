@@ -59,6 +59,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       await PermissionService.instance.handleBackgroundLocationPermission(
         context,
       );
+      // Obtener ubicación inicial rápidamente
+      try {
+        final pos = await Geolocator.getCurrentPosition();
+        if (mounted) setState(() => _currentPosition = pos);
+      } catch (e) {
+        debugPrint('Error getting initial position: $e');
+      }
       _startPositionTracking();
     }
   }
@@ -335,8 +342,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
           GoogleMap(
             markers: _markers,
             onMapCreated: (controller) => _mapController = controller,
-            initialCameraPosition: const CameraPosition(
-              target: _center,
+            initialCameraPosition: CameraPosition(
+              target: _currentPosition != null
+                  ? LatLng(
+                      _currentPosition!.latitude,
+                      _currentPosition!.longitude,
+                    )
+                  : _center,
               zoom: 16.0,
             ),
             myLocationEnabled: true,
@@ -615,13 +627,19 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
           if (_isOnline && incomingTrips.isNotEmpty && !hasActiveTrip)
             Positioned.fill(
               child: TripRequestCard(
+                key: ValueKey(
+                  '${incomingTrips.first.id}_${incomingTrips.first.price}',
+                ),
                 trip: incomingTrips.first,
                 driverPosition: _currentPosition,
                 onReject: () {
                   _stopNotificationSound();
                   ref
                       .read(ignoredTripsProvider.notifier)
-                      .ignore(incomingTrips.first.id);
+                      .ignore(
+                        incomingTrips.first.id,
+                        incomingTrips.first.price,
+                      );
                   setState(() => _markers = {});
                 },
               ),

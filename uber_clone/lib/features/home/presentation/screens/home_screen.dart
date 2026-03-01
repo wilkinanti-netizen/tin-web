@@ -20,6 +20,7 @@ import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/features/home/presentation/providers/user_mode_provider.dart';
 import 'package:tincars/features/trips/presentation/screens/trip_planning_screen.dart';
+import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/features/profile/presentation/screens/driver_registration_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -32,10 +33,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late GoogleMapController mapController;
   static const LatLng _center = LatLng(4.6097, -74.0817); // Bogotá, Colombia
+  LatLng? _initialPosition;
   Set<Marker> _markers = {};
   bool _isRedirectingToTrip = false;
   BitmapDescriptor? _pickupIcon;
-
   BitmapDescriptor? _dropoffIcon;
   BitmapDescriptor? _vehicleIcon;
 
@@ -44,6 +45,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _checkLocationPermission();
     _loadMarkerIcons();
+    _setInitialLocation();
+  }
+
+  Future<void> _setInitialLocation() async {
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos != null && mounted) {
+        setState(() => _initialPosition = LatLng(pos.latitude, pos.longitude));
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadMarkerIcons() async {
@@ -71,7 +82,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _checkLocationPermission() async {
-    await PermissionService.instance.handleLocationPermission(context);
+    final granted = await PermissionService.instance.handleLocationPermission(
+      context,
+    );
+    if (granted) {
+      try {
+        await Geolocator.getCurrentPosition();
+        // El stream de ubicación o el método de centrado se encargarán del resto
+      } catch (e) {
+        debugPrint('Error getting initial position in HomeScreen: $e');
+      }
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -197,6 +218,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final activeTrip = ref.watch(activeTripProvider).asData?.value;
+    final userProfile = ref.watch(userProfileProvider).asData?.value;
     final isPassenger = ref.watch(userModeProvider) == UserMode.passenger;
 
     // Initial redirection if trip exists (Recovery)
@@ -345,8 +367,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           GoogleMap(
             onMapCreated: _onMapCreated,
-            initialCameraPosition: const CameraPosition(
-              target: _center,
+            initialCameraPosition: CameraPosition(
+              target: _initialPosition ?? _center,
               zoom: 16.0,
             ),
             markers: _markers,
@@ -403,16 +425,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Hola,',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                        letterSpacing: -0.5,
+                    if (userProfile?.fullName != null &&
+                        userProfile!.fullName.isNotEmpty) ...[
+                      Text(
+                        'Hola ${userProfile.fullName},',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
+                      const SizedBox(height: 4),
+                    ],
                     Text(
                       '¿A dónde vamos hoy?',
                       style: TextStyle(

@@ -29,8 +29,20 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _slideController;
   late Animation<Offset> _slideAnim;
-  int _secondsLeft = 15;
+  int _secondsLeft = 30;
   Timer? _countdownTimer;
+
+  void _handleIgnore() {
+    _stopNotificationSound();
+    ref
+        .read(ignoredTripsProvider.notifier)
+        .ignore(widget.trip.id, widget.trip.price);
+    widget.onReject?.call();
+  }
+
+  void _stopNotificationSound() {
+    // Helper for consistency
+  }
 
   @override
   void initState() {
@@ -83,7 +95,7 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
       setState(() => _secondsLeft--);
       if (_secondsLeft <= 0) {
         t.cancel();
-        widget.onReject?.call();
+        _handleIgnore();
       }
     });
   }
@@ -115,27 +127,16 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
     final int timeToPickup = (distanceToPickup * 2.5 + 1).toInt().clamp(1, 999);
     final int tripTime = (trip.distance * 2.0 + 2).toInt().clamp(1, 999);
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SlideTransition(
-        position: _slideAnim,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
+    return SlideTransition(
+      position: _slideAnim,
+      child: Container(
+        color: Colors.white,
+        width: double.infinity,
+        height: double.infinity,
+        child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // ── Badge NUEVO VIAJE + countdown ──
                 Row(
@@ -143,8 +144,8 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                        horizontal: 24,
+                        vertical: 12,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.black,
@@ -155,17 +156,17 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                         children: [
                           Icon(
                             Icons.bolt_rounded,
-                            size: 16,
+                            size: 20,
                             color: Colors.white,
                           ),
-                          SizedBox(width: 6),
+                          SizedBox(width: 8),
                           Text(
                             'NUEVO VIAJE',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 1,
+                              fontSize: 16,
+                              letterSpacing: 1.5,
                             ),
                           ),
                         ],
@@ -173,28 +174,21 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                     ),
                     // Countdown
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         color: _secondsLeft <= 5
                             ? Colors.redAccent
-                            : Colors.grey.shade100,
+                            : Colors.black,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _secondsLeft <= 5
-                              ? Colors.redAccent
-                              : Colors.black12,
-                        ),
                       ),
                       child: Center(
                         child: Text(
                           '$_secondsLeft',
-                          style: TextStyle(
-                            color: _secondsLeft <= 5
-                                ? Colors.white
-                                : Colors.black,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                            fontSize: 22,
                           ),
                         ),
                       ),
@@ -202,13 +196,37 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const Spacer(),
 
-                // ── Pasajero + Precio ──
+                // ── Precio Gigante ──
+                Text(
+                  '\$${trip.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 80,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -2,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  trip.paymentMethod.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // ── Pasajero ──
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircleAvatar(
-                      radius: 24,
+                      radius: 30,
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
                       backgroundImage: passengerAsync.value?.avatarUrl != null
                           ? NetworkImage(passengerAsync.value!.avatarUrl!)
@@ -217,197 +235,79 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                           ? const Icon(
                               Icons.person_rounded,
                               color: Colors.black54,
-                              size: 26,
+                              size: 32,
                             )
                           : null,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            passengerAsync.value?.fullName ?? 'Cargando...',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Colors.amber,
-                                size: 13,
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                passengerAsync.value?.averageRating
-                                        ?.toStringAsFixed(1) ??
-                                    '5.0',
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Precio
+                    const SizedBox(width: 16),
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '\$${trip.price.toStringAsFixed(2)}',
+                          passengerAsync.value?.fullName ?? 'Cargando...',
                           style: const TextStyle(
                             color: Colors.black,
-                            fontSize: 34,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -1,
+                            fontSize: 20,
                           ),
                         ),
-                        Text(
-                          trip.paymentMethod.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.amber,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              passengerAsync.value?.averageRating
+                                      ?.toStringAsFixed(1) ??
+                                  '5.0',
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const Spacer(),
 
-                // ── Ruta A → B con km y min ──
+                // ── Ruta A → B ──
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
+                    borderRadius: BorderRadius.circular(32),
                   ),
                   child: Column(
                     children: [
-                      // ── A — Punto de recogida ──
-                      Row(
-                        children: [
-                          _circleLabel('A', Colors.blueAccent),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trip.pickupAddress,
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'A ${distanceToPickup.toStringAsFixed(1)} km · $timeToPickup min de ti',
-                                  style: TextStyle(
-                                    color: Colors.blueAccent.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      _buildRouteBigRow(
+                        'A',
+                        trip.pickupAddress,
+                        'A ${distanceToPickup.toStringAsFixed(1)} km · $timeToPickup min de ti',
+                        Colors.blueAccent,
                       ),
-
-                      // Conector
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 13,
-                          top: 4,
-                          bottom: 4,
-                        ),
-                        child: Row(
-                          children: [
-                            Column(
-                              children: List.generate(
-                                3,
-                                (_) => Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    vertical: 2,
-                                  ),
-                                  width: 2,
-                                  height: 4,
-                                  color: Colors.black12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Text(
-                              '${trip.distance.toStringAsFixed(1)} km · $tripTime min de viaje',
-                              style: TextStyle(
-                                color: Colors.black.withValues(alpha: 0.45),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Divider(color: Colors.black12, height: 1),
                       ),
-
-                      // ── B — Destino ──
-                      Row(
-                        children: [
-                          _circleLabel('B', Colors.white),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trip.dropoffAddress,
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'Destino final del viaje',
-                                  style: TextStyle(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      _buildRouteBigRow(
+                        'B',
+                        trip.dropoffAddress,
+                        'Viaje de ${trip.distance.toStringAsFixed(1)} km · $tripTime min aprox.',
+                        Colors.black87,
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const Spacer(),
 
                 // ── Botones ──
                 Row(
@@ -415,28 +315,35 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                     Expanded(
                       flex: 1,
                       child: OutlinedButton(
-                        onPressed: widget.onReject,
+                        onPressed: _handleIgnore,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.redAccent,
-                          side: BorderSide(
-                            color: Colors.redAccent.withValues(alpha: 0.3),
+                          side: const BorderSide(
+                            color: Colors.redAccent,
+                            width: 2,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          padding: const EdgeInsets.symmetric(vertical: 22),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(24),
                           ),
                         ),
                         child: const Text(
                           'IGNORAR',
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 13,
+                            fontSize: 16,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(flex: 2, child: _AcceptButton(trip: trip)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 70,
+                        child: _AcceptButton(trip: trip),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -447,25 +354,66 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
     );
   }
 
-  Widget _circleLabel(String label, Color color) {
-    if (color == Colors.white)
-      color = Colors.black; // Ensure white isn't invisible on white bg
+  Widget _buildRouteBigRow(
+    String label,
+    String address,
+    String sub,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        _circleLabel(label, color, size: 40),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                address,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                sub,
+                style: TextStyle(
+                  color: color.withValues(alpha: 0.7),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _circleLabel(String label, Color color, {double size = 28}) {
+    Color displayColor = color == Colors.white ? Colors.black : color;
 
     return Container(
-      width: 28,
-      height: 28,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(7),
+        color: displayColor.withValues(alpha: 0.1),
+        border: Border.all(
+          color: displayColor.withValues(alpha: 0.3),
+          width: 2,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.25),
       ),
       child: Center(
         child: Text(
           label,
           style: TextStyle(
-            color: color,
+            color: displayColor,
             fontWeight: FontWeight.w900,
-            fontSize: 13,
+            fontSize: size * 0.45,
           ),
         ),
       ),

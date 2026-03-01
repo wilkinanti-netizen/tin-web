@@ -31,6 +31,20 @@ class EarningsScreen extends ConsumerWidget {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
+          if (Navigator.canPop(context))
+            SliverAppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              floating: true,
+              snap: true,
+            ),
           // ── Main Content ──
           SliverToBoxAdapter(
             child: driverProfile.when(

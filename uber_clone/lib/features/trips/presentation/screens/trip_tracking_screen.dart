@@ -329,7 +329,9 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                 mapToolbarEnabled: false,
               ),
               Positioned(
-                top: MediaQuery.of(context).padding.top + 10,
+                top:
+                    MediaQuery.of(context).padding.top +
+                    70, // Bajado para evitar superposición
                 right: 20,
                 child: _buildSOSButton(),
               ),

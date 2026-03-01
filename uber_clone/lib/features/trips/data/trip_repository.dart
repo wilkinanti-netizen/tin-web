@@ -73,7 +73,9 @@ class TripRepository {
               final t = Trip.fromJson(json);
               return t;
             } catch (e) {
-              AppLogger.log('TripRepository: ERROR parseando viaje: $e . JSON: $json');
+              AppLogger.log(
+                'TripRepository: ERROR parseando viaje: $e . JSON: $json',
+              );
               return null; // Será filtrado
             }
           })
@@ -214,7 +216,9 @@ class TripRepository {
         .eq('driver_id', driverId)
         .map((data) {
           if (data.isEmpty) {
-            AppLogger.log('TripRepository: streamActiveTrip(D) vacío para $driverId');
+            AppLogger.log(
+              'TripRepository: streamActiveTrip(D) vacío para $driverId',
+            );
             return null;
           }
           final trips = data.map((json) => Trip.fromJson(json)).toList();
@@ -330,22 +334,22 @@ class TripRepository {
   // Update trip status (arrived, in_progress, completed)
   Future<void> updateTripStatus(
     String tripId,
-    TripStatus status, {
+    dynamic status, {
     String? cancellationReason,
   }) async {
-    final Map<String, dynamic> data = {'status': status.name};
+    final statusStr = status is TripStatus ? status.name : status.toString();
+    final Map<String, dynamic> data = {'status': statusStr};
     if (cancellationReason != null) {
       data['cancellation_reason'] = cancellationReason;
     }
 
+    print('TripRepository: Actualizando viaje $tripId a status: $statusStr');
     await _supabase.from('trips').update(data).eq('id', tripId);
   }
 
   // Cancel a trip (delete or update status)
   Future<void> cancelTrip(String tripId) async {
-    // We can either delete the row or set status to cancelled.
-    // Setting to cancelled is better for history.
-    await updateTripStatus(tripId, TripStatus.cancelled);
+    await updateTripStatus(tripId, 'cancelled');
   }
 
   // Update driver location for a trip
@@ -367,9 +371,13 @@ class TripRepository {
           .from('trips')
           .update({'price': newPrice})
           .eq('id', tripId);
-      AppLogger.log('TripRepository: Update exitoso para $tripId a precio $newPrice');
+      AppLogger.log(
+        'TripRepository: Update exitoso para $tripId a precio $newPrice',
+      );
     } catch (e) {
-      AppLogger.log('TripRepository: Error en updateTripPrice para $tripId: $e');
+      AppLogger.log(
+        'TripRepository: Error en updateTripPrice para $tripId: $e',
+      );
       rethrow;
     }
   }
