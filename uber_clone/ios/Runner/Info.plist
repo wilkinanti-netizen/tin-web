@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Uber Clone</string>
+	<string>TinCars</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>uber_clone</string>
+	<string>TinCars</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -48,8 +48,20 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to location when open to show your position on the map.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app needs access to location when in the background to track your ride.</string>
+	<string>Esta aplicación requiere acceso a tu ubicación en segundo plano para rastrear tu viaje y asegurar tu seguridad.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Esta aplicación requiere acceso a tu ubicación tanto en uso como en segundo plano para mostrar tu posición en el mapa y rastrear tus viajes.</string>
 	<key>driver_app_id</key>
 	<string>YOUR_DRIVER_APP_ID</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Esta aplicación requiere acceso a tu galería para subir los documentos de registro como conductor.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Esta aplicación requiere acceso a la cámara para tomar fotos de los documentos de registro.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>TinCars utiliza la red local para comunicarse con el depurador de Flutter.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartobservatory._tcp</string>
+	</array>
 </dict>
 </plist>
