@@ -1,0 +1,262 @@
+Analyzing tincars...                                            
+
+   info • Statements in an if should be enclosed in a block • lib/core/router/app_router.dart:37:9 • curly_braces_in_flow_control_structures
+   info • Use interpolation to compose strings and values • lib/core/services/maps_service.dart:49:22 • prefer_interpolation_to_compose_strings
+   info • 'useMaterial3' is deprecated and shouldn't be used. Use a ThemeData constructor (.from, .light, or .dark) instead. These constructors all have a useMaterial3 argument, and they set appropriate default values based on its value. See the useMaterial3 API documentation for full details. This feature was deprecated after v3.13.0-0.2.pre • lib/core/theme/app_theme.dart:13:7 • deprecated_member_use
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/core/theme/app_theme.dart:21:9 • deprecated_member_use
+   info • 'useMaterial3' is deprecated and shouldn't be used. Use a ThemeData constructor (.from, .light, or .dark) instead. These constructors all have a useMaterial3 argument, and they set appropriate default values based on its value. See the useMaterial3 API documentation for full details. This feature was deprecated after v3.13.0-0.2.pre • lib/core/theme/app_theme.dart:98:7 • deprecated_member_use
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/core/theme/app_theme.dart:106:9 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/theme/app_theme.dart:157:33 • deprecated_member_use
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/core/utils/emoji_marker_generator.dart:5:8 • unnecessary_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/utils/marker_utils.dart:80:32 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/core/utils/permission_service.dart:32:9 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/core/utils/permission_service.dart:63:7 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/mode_switch_overlay.dart:80:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/mode_switch_overlay.dart:102:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/mode_switch_overlay.dart:103:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/mode_switch_overlay.dart:132:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/permission_disclosure_dialog.dart:36:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/permission_disclosure_dialog.dart:57:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/widgets/permission_disclosure_dialog.dart:113:37 • deprecated_member_use
+   info • The imported package 'riverpod_annotation' isn't a dependency of the importing package • lib/features/auth/presentation/controllers/auth_controller.dart:1:8 • depend_on_referenced_packages
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:16:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:24:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:26:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:56:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:57:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:59:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:63:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:67:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:91:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:93:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:98:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:104:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:109:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:115:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:120:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:128:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:136:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/controllers/auth_controller.dart:141:5 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:69:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:85:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:122:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:163:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:166:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:207:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:221:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:252:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/login_screen.dart:266:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/otp_verification_screen.dart:90:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/otp_verification_screen.dart:105:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/otp_verification_screen.dart:170:59 • deprecated_member_use
+warning • Unused import: 'package:tincars/features/auth/data/auth_repository.dart' • lib/features/auth/presentation/screens/pending_verification_screen.dart:3:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/pending_verification_screen.dart:22:50 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/screens/register_screen.dart:107:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/screens/register_screen.dart:108:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/screens/register_screen.dart:109:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/screens/register_screen.dart:120:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/auth/presentation/screens/register_screen.dart:141:5 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/register_screen.dart:233:50 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/features/auth/presentation/screens/register_screen.dart:446:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/register_screen.dart:511:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/register_screen.dart:524:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/auth/presentation/screens/register_screen.dart:590:31 • deprecated_member_use
+   info • The member 'state' overrides an inherited member but isn't annotated with '@override' • lib/features/home/presentation/providers/user_mode_provider.dart:60:7 • annotate_overrides
+   info • Don't use 'BuildContext's across async gaps • lib/features/home/presentation/screens/driver_home_screen.dart:77:35 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/features/home/presentation/screens/driver_home_screen.dart:80:9 • use_build_context_synchronously
+   info • Statements in an if should be enclosed in a block • lib/features/home/presentation/screens/driver_home_screen.dart:211:11 • curly_braces_in_flow_control_structures
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/driver_home_screen.dart:338:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/driver_home_screen.dart:355:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/driver_home_screen.dart:362:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/driver_home_screen.dart:398:11 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/features/home/presentation/screens/driver_home_screen.dart:857:20 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation • lib/features/home/presentation/screens/driver_home_screen.dart:874:20 • unnecessary_brace_in_string_interps
+warning • The '!' will have no effect because the receiver can't be null • lib/features/home/presentation/screens/driver_home_screen.dart:926:36 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null • lib/features/home/presentation/screens/driver_home_screen.dart:938:36 • unnecessary_non_null_assertion
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/home/presentation/screens/home_screen.dart:152:19 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/home_screen.dart:175:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/features/home/presentation/screens/home_screen.dart:245:9 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/features/home/presentation/screens/home_screen.dart:363:11 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/home/presentation/widgets/booking_bottom_sheet.dart:74:33 • deprecated_member_use
+warning • Unused import: 'package:firebase_auth/firebase_auth.dart' • lib/features/profile/data/profile_repository.dart:3:8 • unused_import
+warning • Unused import: 'package:flutter_riverpod/flutter_riverpod.dart' • lib/features/profile/data/profile_repository.dart:8:8 • unused_import
+   info • Don't invoke 'print' in production code • lib/features/profile/presentation/controllers/profile_controller.dart:28:5 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/account_details_screen.dart:307:37 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/features/profile/presentation/screens/add_vehicle_screen.dart:249:23 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/cards_screen.dart:311:57 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/cards_screen.dart:582:42 • use_build_context_synchronously
+   info • Unnecessary braces in a string interpolation • lib/features/profile/presentation/screens/driver_document_screen.dart:64:57 • unnecessary_brace_in_string_interps
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_document_screen.dart:324:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_registration_screen.dart:382:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_registration_screen.dart:1050:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_service_settings_screen.dart:227:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_service_settings_screen.dart:239:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_service_settings_screen.dart:277:48 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor or activeTrackColor instead. This feature was deprecated after v3.31.0-2.0.pre • lib/features/profile/presentation/screens/driver_service_settings_screen.dart:278:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_waiting_screen.dart:31:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_waiting_screen.dart:32:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/driver_waiting_screen.dart:64:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/emergency_contacts_screen.dart:185:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/emergency_contacts_screen.dart:187:54 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/features/profile/presentation/screens/my_vehicles_screen.dart:34:15 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/my_vehicles_screen.dart:78:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/my_vehicles_screen.dart:105:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/my_vehicles_screen.dart:134:26 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:173:45 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:174:52 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:184:52 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:294:48 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:303:48 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/profile_screen.dart:372:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/profile_screen.dart:532:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/profile_screen.dart:534:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/profile_screen.dart:550:80 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/features/profile/presentation/screens/profile_screen.dart:559:48 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/features/profile/presentation/screens/profile_screen.dart:563:48 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/profile_screen.dart:712:48 • use_build_context_synchronously
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor or activeTrackColor instead. This feature was deprecated after v3.31.0-2.0.pre • lib/features/profile/presentation/screens/profile_screen.dart:791:19 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/security_screen.dart:76:43 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/security_screen.dart:77:50 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/profile/presentation/screens/security_screen.dart:83:50 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/profile/presentation/screens/set_address_screen.dart:156:35 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/features/profile/presentation/screens/wallet_screen.dart:34:13 • curly_braces_in_flow_control_structures
+warning • Dead code • lib/features/profile/presentation/screens/wallet_screen.dart:228:43 • dead_code
+warning • Dead code • lib/features/profile/presentation/screens/wallet_screen.dart:233:23 • dead_code
+   info • Don't invoke 'print' in production code • lib/features/trips/data/rating_repository.dart:21:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/data/rating_repository.dart:38:5 • avoid_print
+   info • The parameter name 'sum' matches a visible type name • lib/features/trips/data/rating_repository.dart:55:44 • avoid_types_as_parameter_names
+   info • Don't invoke 'print' in production code • lib/features/trips/data/rating_repository.dart:59:5 • avoid_print
+warning • Unused import: 'package:flutter/foundation.dart' • lib/features/trips/data/trip_repository.dart:2:8 • unused_import
+warning • Unused import: 'package:firebase_auth/firebase_auth.dart' • lib/features/trips/data/trip_repository.dart:5:8 • unused_import
+warning • Unnecessary cast • lib/features/trips/data/trip_repository.dart:120:43 • unnecessary_cast
+warning • Unnecessary cast • lib/features/trips/data/trip_repository.dart:137:43 • unnecessary_cast
+warning • Unnecessary cast • lib/features/trips/data/trip_repository.dart:155:40 • unnecessary_cast
+warning • Unnecessary cast • lib/features/trips/data/trip_repository.dart:178:40 • unnecessary_cast
+warning • Unnecessary cast • lib/features/trips/data/trip_repository.dart:336:34 • unnecessary_cast
+   info • Statements in an if should be enclosed in a block • lib/features/trips/domain/models/trip_model.dart:187:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/trips/domain/models/trip_model.dart:189:7 • curly_braces_in_flow_control_structures
+   info • Don't invoke 'print' in production code • lib/features/trips/domain/services/stripe_service.dart:15:5 • avoid_print
+warning • Unused import: 'package:geolocator/geolocator.dart' • lib/features/trips/presentation/controllers/trip_controller.dart:6:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:125:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:130:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:135:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:153:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:154:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:184:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:258:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/activity_screen.dart:290:51 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:159:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:303:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:361:9 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:613:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:617:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:685:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:742:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:889:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:891:43 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:1126:7 • use_build_context_synchronously
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:1139:19 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/features/trips/presentation/screens/driver_trip_management_screen.dart:1140:19 • deprecated_member_use
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/trips/presentation/screens/map_selection_screen.dart:86:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/map_selection_screen.dart:168:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/payment_details_screen.dart:46:61 • deprecated_member_use
+   info • 'fromBytes' is deprecated and shouldn't be used. Use BitmapDescriptor.bytes method instead • lib/features/trips/presentation/screens/payment_details_screen.dart:93:29 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/payment_details_screen.dart:107:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/payment_details_screen.dart:109:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/payment_details_screen.dart:111:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/payment_details_screen.dart:113:7 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/payment_details_screen.dart:148:41 • deprecated_member_use
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/trips/presentation/screens/payment_details_screen.dart:157:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/payment_details_screen.dart:364:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/payment_details_screen.dart:365:53 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:66:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:74:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:124:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:128:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:180:9 • avoid_print
+   info • 'fromBytes' is deprecated and shouldn't be used. Use BitmapDescriptor.bytes method instead • lib/features/trips/presentation/screens/searching_driver_screen.dart:263:29 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:310:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:331:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:338:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:345:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:348:14 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/searching_driver_screen.dart:353:13 • avoid_print
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/trips/presentation/screens/searching_driver_screen.dart:381:35 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_cancellation_screen.dart:38:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_cancellation_screen.dart:50:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_cancellation_screen.dart:54:7 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_cancellation_screen.dart:110:31 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_chat_screen.dart:135:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_chat_screen.dart:138:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_chat_screen.dart:154:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_chat_screen.dart:163:17 • avoid_print
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/trip_chat_screen.dart:254:47 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_chat_screen.dart:311:39 • deprecated_member_use
+warning • The value of the field '_scaleAnim' isn't used • lib/features/trips/presentation/screens/trip_completion_screen.dart:30:26 • unused_field
+   info • The private field _sessionToken could be 'final' • lib/features/trips/presentation/screens/trip_planning_screen.dart:58:10 • prefer_final_fields
+   info • 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings • lib/features/trips/presentation/screens/trip_planning_screen.dart:207:9 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_planning_screen.dart:612:43 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/trip_planning_screen.dart:686:41 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/trips/presentation/screens/trip_planning_screen.dart:711:41 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_planning_screen.dart:967:35 • deprecated_member_use
+   info • 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings • lib/features/trips/presentation/screens/trip_request_screen.dart:59:9 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_request_screen.dart:136:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_request_screen.dart:153:59 • deprecated_member_use
+warning • The value of the field '_estimatedDistance' isn't used • lib/features/trips/presentation/screens/trip_tracking_screen.dart:57:11 • unused_field
+warning • The value of the field '_estimatedDuration' isn't used • lib/features/trips/presentation/screens/trip_tracking_screen.dart:58:11 • unused_field
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:472:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:477:13 • avoid_print
+warning • The operand can't be 'null', so the condition is always 'false' • lib/features/trips/presentation/screens/trip_tracking_screen.dart:510:20 • unnecessary_null_comparison
+warning • Dead code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:510:29 • dead_code
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:586:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:587:11 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:654:61 • deprecated_member_use
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/trips/presentation/screens/trip_tracking_screen.dart:730:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:773:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:822:35 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:892:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:893:7 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:907:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:913:21 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:946:35 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:971:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/trip_tracking_screen.dart:972:7 • avoid_print
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1054:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1090:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1113:44 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1315:21 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1334:29 • deprecated_member_use
+warning • The declaration '_buildStatusBadge' isn't referenced • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1349:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1353:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trip_tracking_screen.dart:1423:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:40:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:46:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:90:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:93:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:111:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:112:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:141:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:171:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:176:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:203:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:217:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/trips_screen.dart:219:54 • deprecated_member_use
+   info • 'fromBytes' is deprecated and shouldn't be used. Use BitmapDescriptor.bytes method instead • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:219:29 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:279:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:323:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:351:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:362:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:368:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:530:45 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:532:33 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:548:54 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:560:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:567:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:574:53 • deprecated_member_use
+   info • 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:834:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:1052:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:1054:65 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/trips/presentation/screens/vehicle_selection_screen.dart:1220:34 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/features/trips/presentation/widgets/trip_request_card.dart:474:42 • use_build_context_synchronously
+
+258 issues found. (ran in 8.7s)
