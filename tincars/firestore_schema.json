@@ -1,0 +1,105 @@
+{
+  "collections": [
+    {
+      "name": "profiles",
+      "description": "User profiles for both passengers and drivers.",
+      "fields": {
+        "id": "String (Document ID)",
+        "full_name": "String",
+        "email": "String",
+        "avatar_url": "String (Nullable)",
+        "phone_number": "String (Nullable)",
+        "is_driver": "Boolean",
+        "driver_status": "String (pending, active, rejected, inactive)",
+        "is_admin": "Boolean",
+        "wallet_balance": "Number",
+        "referral_code": "String",
+        "referred_by_id": "String (Nullable)",
+        "average_rating": "Number",
+        "total_ratings": "Number",
+        "device_id": "String (Nullable)",
+        "last_mode": "String (passenger, driver)"
+      }
+    },
+    {
+      "name": "driver_data",
+      "description": "Public driver details and current vehicle info.",
+      "fields": {
+        "profile_id": "String (Document ID)",
+        "vehicle_model": "String",
+        "vehicle_plate": "String",
+        "vehicle_type": "String",
+        "vehicle_color": "String (Nullable)",
+        "is_verified": "Boolean",
+        "active_services": "Array<String>",
+        "total_earnings": "Number",
+        "doc_license_url": "String",
+        "doc_insurance_url": "String",
+        "last_lat": "Number (Nullable)",
+        "last_lng": "Number (Nullable)",
+        "last_heading": "Number (Nullable)",
+        "last_location_update": "Timestamp (Nullable)"
+      }
+    },
+    {
+      "name": "driver_verifications",
+      "description": "Sensitive driver application documents and verification details.",
+      "fields": {
+        "driver_id": "String (Document ID)",
+        "dni_number": "String (License number)",
+        "birth_date": "Timestamp",
+        "face_photo_url": "String",
+        "license_photo_url": "String",
+        "license_back_photo_url": "String",
+        "dni_front_photo_url": "String",
+        "dni_back_photo_url": "String",
+        "registration_photo_url": "String",
+        "vehicle_photo_url": "String",
+        "insurance_photo_url": "String",
+        "driver_motivation": "String",
+        "hours_per_week": "Number",
+        "has_experience": "Boolean",
+        "ssn": "String (Encrypted)",
+        "status": "String (pending, approved, rejected)",
+        "rejection_reason": "String (Nullable)",
+        "background_check_consent": "Boolean",
+        "terms_accepted": "Boolean",
+        "created_at": "Timestamp"
+      }
+    },
+    {
+      "name": "trips",
+      "description": "Ride history and active trips.",
+      "fields": {
+        "id": "String (Document ID)",
+        "passenger_id": "String",
+        "driver_id": "String (Nullable)",
+        "status": "String (requested, accepted, arrived, in_progress, completed, cancelled)",
+        "pickup_address": "String",
+        "dropoff_address": "String",
+        "pickup_lat": "Number",
+        "pickup_lng": "Number",
+        "dropoff_lat": "Number",
+        "dropoff_lng": "Number",
+        "price": "Number",
+        "distance": "Number",
+        "payment_method": "String",
+        "vehicle_type": "String",
+        "intermediate_stops": "Array<Map>",
+        "tip_amount": "Number",
+        "created_at": "Timestamp"
+      }
+    },
+    {
+      "name": "payout_requests",
+      "description": "Withdrawal requests from drivers.",
+      "fields": {
+        "id": "String (Document ID)",
+        "user_id": "String",
+        "amount": "Number",
+        "status": "String (pending, completed, failed)",
+        "created_at": "Timestamp"
+      }
+    }
+  ]
+}

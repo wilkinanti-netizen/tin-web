@@ -7,6 +7,7 @@ import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/profile/domain/models/payout_request.dart';
 import 'package:tincars/features/profile/domain/models/payout_method.dart';
 import 'package:tincars/features/profile/domain/models/emergency_contact.dart';
+import 'package:tincars/features/profile/domain/models/driver_verification.dart';
 import 'package:tincars/core/services/session_service.dart';
 import 'package:tincars/features/auth/data/auth_repository.dart';
 
@@ -25,7 +26,6 @@ final driverProfileProvider = FutureProvider<DriverProfile?>((ref) async {
       .read(profileRepositoryProvider)
       .getDriverData(user.uid);
   if (profile == null) {
-    print('driverProfileProvider: No se encontró perfil de conductor para ${user.uid}');
   } else {
     AppLogger.log('driverProfileProvider: Perfil de conductor cargado exitosamente');
   }
@@ -44,6 +44,10 @@ final otherUserProfileProvider = FutureProvider.family<AppUser?, String>((ref, u
 
 final otherDriverProfileProvider = FutureProvider.family<DriverProfile?, String>((ref, userId) async {
   return ref.read(profileRepositoryProvider).getDriverData(userId);
+});
+
+final driverVerificationProvider = FutureProvider.family<DriverVerification?, String>((ref, userId) async {
+  return ref.read(profileRepositoryProvider).getDriverVerification(userId);
 });
 
 final payoutMethodsProvider = FutureProvider<List<PayoutMethod>>((ref) async {

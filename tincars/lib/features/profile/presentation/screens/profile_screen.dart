@@ -7,15 +7,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:tincars/features/trips/presentation/screens/activity_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/activity_screen.dart';
 import 'package:tincars/features/home/presentation/providers/user_mode_provider.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
-import 'package:tincars/features/profile/presentation/screens/driver_service_settings_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_service_settings_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/account_details_screen.dart';
-import 'package:tincars/features/profile/presentation/screens/my_vehicles_screen.dart';
-import 'package:tincars/features/profile/presentation/screens/earnings_screen.dart';
-import 'package:tincars/features/profile/presentation/screens/driver_waiting_room.dart';
-import 'package:tincars/features/profile/presentation/screens/driver_registration_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/my_vehicles_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/earnings_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_waiting_room.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_registration_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/cards_screen.dart';
 import 'package:tincars/core/localization/locale_provider.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
@@ -55,14 +55,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final userId = FirebaseAuth.instance.currentUser!.uid;
       final fileName =
           'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      
-      final storageRef = FirebaseStorage.instance.ref().child('avatars/$userId/$fileName');
-      
+
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'avatars/$userId/$fileName',
+      );
+
       final uploadTask = storageRef.putData(
         bytes,
         SettableMetadata(contentType: 'image/$fileExt'),
       );
-      
+
       final snapshot = await uploadTask;
       final avatarUrl = await snapshot.ref.getDownloadURL();
 
@@ -159,7 +161,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           setStateDialog(() => isLoading = true);
 
                           try {
-                            final userId = FirebaseAuth.instance.currentUser!.uid;
+                            final userId =
+                                FirebaseAuth.instance.currentUser!.uid;
                             // Update profiles collection
                             await FirebaseFirestore.instance
                                 .collection('profiles')
@@ -443,7 +446,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               .get();
 
           final reason = (verificationDocs.docs.isNotEmpty)
-              ? (verificationDocs.docs.first.data()['rejection_reason'] as String? ?? 'No se especificó motivo.')
+              ? (verificationDocs.docs.first.data()['rejection_reason']
+                        as String? ??
+                    'No se especificó motivo.')
               : 'No se especificó motivo.';
           if (mounted) {
             showDialog(
@@ -524,51 +529,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (user != null && !user.emailVerified)
-              Container(
-                margin: const EdgeInsets.only(bottom: 24),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Correo no verificado',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            'Revisa tu bandeja de entrada para verificar tu cuenta.',
-                            style: TextStyle(fontSize: 12, color: Colors.black.withOpacity(0.6)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        try {
-                          await user.sendEmailVerification();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Correo de verificación enviado')),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
-                      },
-                      child: const Text('Reenviar'),
-                    ),
-                  ],
-                ),
-              ),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -594,7 +554,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           IconButton(
                             onPressed: () => _editName(fullName),
-                            icon: const Icon(Icons.edit_rounded, color: Colors.black54, size: 20),
+                            icon: const Icon(
+                              Icons.edit_rounded,
+                              color: Colors.black54,
+                              size: 20,
+                            ),
                             tooltip: l10n.editName,
                           ),
                         ],
@@ -603,17 +567,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.star_rounded, size: 16, color: Colors.black87),
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 16,
+                                  color: Colors.black87,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  userProfile?.averageRating?.toStringAsFixed(1) ?? '5.0',
+                                  userProfile?.averageRating?.toStringAsFixed(
+                                        1,
+                                      ) ??
+                                      '5.0',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
@@ -659,13 +633,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         child: avatarUrl == null
                             ? (userProfile?.mapEmoji != null
-                                ? Center(
-                                    child: Text(
-                                      userProfile!.mapEmoji!,
-                                      style: const TextStyle(fontSize: 40),
-                                    ),
-                                  )
-                                : const Icon(Icons.person_rounded, size: 45, color: Colors.black38))
+                                  ? Center(
+                                      child: Text(
+                                        userProfile!.mapEmoji!,
+                                        style: const TextStyle(fontSize: 40),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.person_rounded,
+                                      size: 45,
+                                      color: Colors.black38,
+                                    ))
                             : null,
                       ),
                       if (_isUploading)
@@ -677,7 +655,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             color: Colors.black.withValues(alpha: 0.5),
                           ),
                           child: const Center(
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            ),
                           ),
                         ),
                       Positioned(
@@ -685,8 +666,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         right: 0,
                         child: Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
-                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                          decoration: const BoxDecoration(
+                            color: Colors.blueAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -704,13 +692,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     icon: Icons.help_rounded,
                     label: 'Ayuda',
                     onTap: () async {
-                      final uri = Uri.parse('whatsapp://send?phone=+14697836010');
+                      final uri = Uri.parse(
+                        'whatsapp://send?phone=+14697836010',
+                      );
                       if (await canLaunchUrl(uri)) {
                         await launchUrl(uri);
                       } else {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+                            const SnackBar(
+                              content: Text('No se pudo abrir WhatsApp'),
+                            ),
                           );
                         }
                       }
@@ -737,12 +729,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       if (!isPassenger) {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const EarningsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const EarningsScreen(),
+                          ),
                         );
                       } else {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const ActivityScreen(),
+                          ),
                         );
                       }
                     },
@@ -766,7 +762,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -774,17 +773,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isPassenger ? Icons.drive_eta_rounded : Icons.person_rounded,
+                    isPassenger
+                        ? Icons.drive_eta_rounded
+                        : Icons.person_rounded,
                     color: Colors.black,
                   ),
                 ),
                 title: Text(
                   isPassenger ? l10n.driveWithTins : l10n.travelWithTins,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
                 subtitle: Text(
                   isPassenger ? l10n.generateIncome : l10n.requestRideNow,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 trailing: Switch.adaptive(
                   value: !isPassenger,
@@ -822,10 +829,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 items: [
                   _MenuItem(
                     icon: Icons.directions_car_rounded,
-                    label: driverProfileAsync.value?.vehicleModel ?? l10n.addVehicle,
+                    label:
+                        driverProfileAsync.value?.vehicleModel ??
+                        l10n.addVehicle,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const MyVehiclesScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const MyVehiclesScreen(),
+                      ),
                     ),
                   ),
                   _MenuItem(
@@ -833,7 +844,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: l10n.serviceSettings,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const DriverServiceSettingsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const DriverServiceSettingsScreen(),
+                      ),
                     ),
                   ),
                 ],
@@ -865,19 +878,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 32),
 
-            if (userProfile?.isAdmin ?? false) ...[
-              _MenuSection(
-                title: 'Administración',
-                items: [
-                  _MenuItem(
-                    icon: Icons.admin_panel_settings_outlined,
-                    label: 'Panel de Control',
-                    onTap: () => context.push('/admin-dashboard'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-            ],
+
 
             _MenuSection(
               title: l10n.settings,
@@ -890,7 +891,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     if (user != null) {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => AccountDetailsScreen(user: user)),
+                        MaterialPageRoute(
+                          builder: (_) => AccountDetailsScreen(user: user),
+                        ),
                       );
                     }
                   },
@@ -924,7 +927,11 @@ class _ActionBox extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ActionBox({required this.icon, required this.label, required this.onTap});
+  const _ActionBox({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -948,7 +955,10 @@ class _ActionBox extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.black87, size: 28),
             const SizedBox(height: 12),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
           ],
         ),
       ),
@@ -971,7 +981,11 @@ class _MenuSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 8, bottom: 12),
           child: Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.4),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
         Container(
@@ -993,7 +1007,12 @@ class _MenuSection extends StatelessWidget {
                 children: [
                   item,
                   if (!isLast)
-                    const Divider(height: 1, indent: 60, endIndent: 20, color: Colors.black12),
+                    const Divider(
+                      height: 1,
+                      indent: 60,
+                      endIndent: 20,
+                      color: Colors.black12,
+                    ),
                 ],
               );
             }).toList(),
@@ -1036,7 +1055,11 @@ class _MenuItem extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: TextStyle(fontWeight: FontWeight.w600, color: textColor, fontSize: 15),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: textColor,
+          fontSize: 15,
+        ),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

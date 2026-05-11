@@ -7,12 +7,12 @@ import 'package:tincars/features/auth/presentation/screens/terms_screen.dart';
 import 'package:tincars/features/home/presentation/screens/main_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/profile_screen.dart';
 import 'package:tincars/features/trips/presentation/screens/trips_screen.dart';
-import 'package:tincars/features/trips/presentation/screens/activity_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/activity_screen.dart';
 import 'package:tincars/features/auth/presentation/screens/otp_verification_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/wallet_screen.dart';
-import 'package:tincars/features/trips/presentation/screens/payment_details_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/payment_details_screen.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
-import 'package:tincars/features/profile/presentation/screens/admin_dashboard_screen.dart';
+
 import 'package:tincars/features/profile/presentation/screens/emergency_contacts_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/cards_screen.dart';
 
@@ -73,10 +73,7 @@ final router = GoRouter(
       builder: (context, state) => const ActivityScreen(),
     ),
     GoRoute(path: '/wallet', builder: (context, state) => const WalletScreen()),
-    GoRoute(
-      path: '/admin-dashboard',
-      builder: (context, state) => const AdminDashboardScreen(),
-    ),
+
     GoRoute(
       path: '/emergency-contacts',
       builder: (context, state) => const EmergencyContactsScreen(),

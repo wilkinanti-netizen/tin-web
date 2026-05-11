@@ -7,12 +7,12 @@ import 'package:tincars/core/services/session_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/features/profile/presentation/screens/profile_screen.dart';
-import 'package:tincars/features/trips/presentation/screens/activity_screen.dart';
-import 'package:tincars/features/home/presentation/screens/home_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/activity_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/home_screen.dart';
 import 'package:tincars/features/home/presentation/providers/user_mode_provider.dart';
-import 'package:tincars/features/home/presentation/screens/driver_home_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_home_screen.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
-import 'package:tincars/features/profile/presentation/screens/earnings_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/earnings_screen.dart';
 import 'package:tincars/features/trips/presentation/screens/trips_screen.dart';
 import 'package:tincars/features/auth/presentation/screens/pending_verification_screen.dart';
 import 'package:tincars/features/profile/domain/models/profiles.dart';
@@ -129,8 +129,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
         final incomingTrips = ref.watch(requestedTripsProvider).asData?.value ?? [];
         final activeTrip = ref.watch(activeTripProvider).asData?.value;
-        final hideBottomBar =
-            !isPassenger && incomingTrips.isNotEmpty && activeTrip == null;
+        final isDriverOfActiveTrip = activeTrip != null && activeTrip.driverId == FirebaseAuth.instance.currentUser?.uid;
+        final hideBottomBar = !isPassenger && (incomingTrips.isNotEmpty || isDriverOfActiveTrip);
 
     final List<Widget> passengerScreens = [
       const HomeScreen(),

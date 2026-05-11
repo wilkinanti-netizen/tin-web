@@ -12,37 +12,55 @@ class StripeService {
   /// Cobra $0 para verificar que la pasarela de pagos funciona.
   /// Usa una Firebase Cloud Function que valida la tarjeta sin cobrar.
   Future<void> setupCardWithZeroAuth(String customerId) async {
-    print('[STRIPE] Iniciando verificación de tarjeta (\$0) vía Firebase Cloud Function');
     try {
+      AppLogger.log(
+        '[STRIPE] Solicitando SetupIntent a Firebase para: $customerId',
+      );
       final response = await _functions.httpsCallable('stripePayments').call({
         'action': 'create-setup-intent',
         'customerId': customerId,
       });
 
       final data = response.data as Map<String, dynamic>;
+      AppLogger.log('[STRIPE] Respuesta de Cloud Function recibida: $data');
+
       final setupIntentSecret = data['setupIntent'] as String?;
       final ephemeralKey = data['ephemeralKey'] as String?;
       final stripeCustomerId = data['customer'] as String? ?? customerId;
 
       if (setupIntentSecret == null) {
+        AppLogger.log(
+          '[STRIPE] ERROR: setupIntentSecret es nulo. Respuesta: $data',
+        );
         throw 'El servidor no devolvió setupIntent. Respuesta: $data';
       }
 
-      AppLogger.log('[STRIPE] SetupIntent recibido. Mostrando PaymentSheet...');
-
+      AppLogger.log('[STRIPE] Inicializando PaymentSheet...');
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           setupIntentClientSecret: setupIntentSecret,
           customerEphemeralKeySecret: ephemeralKey,
           customerId: stripeCustomerId,
           merchantDisplayName: 'TINS CARS',
+          returnURL: 'tincars://stripe-redirect',
           appearance: const PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(primary: Colors.black),
           ),
         ),
       );
+      AppLogger.log('[STRIPE] PaymentSheet inicializado correctamente');
     } catch (e) {
-      debugPrint('[STRIPE] Error en setupCardWithZeroAuth: $e');
+      if (e is StripeException) {
+        AppLogger.error(
+          '[STRIPE] Error de Stripe: ${e.error.localizedMessage}',
+          error: e,
+        );
+      } else {
+        AppLogger.error(
+          '[STRIPE] Error en setupCardWithZeroAuth: $e',
+          error: e,
+        );
+      }
       rethrow;
     }
   }
@@ -62,12 +80,16 @@ class StripeService {
 
       final data = response.data as Map<String, dynamic>;
       final paymentIntentSecret = data['paymentIntent'] as String?;
+      final ephemeralKey = data['ephemeralKey'] as String?;
+      final stripeCustomerId = data['customer'] as String? ?? customerId;
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: paymentIntentSecret,
-          customerId: customerId,
+          customerEphemeralKeySecret: ephemeralKey,
+          customerId: stripeCustomerId,
           merchantDisplayName: 'TINS CARS',
+          returnURL: 'tincars://stripe-redirect',
           appearance: const PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(primary: Colors.black),
           ),

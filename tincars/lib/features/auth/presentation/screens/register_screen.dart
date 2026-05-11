@@ -104,9 +104,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (_isDriver && _currentStep == 2) {
-      print('[DEBUG] Registro Conductor - Paso 2: Validando documentos');
-      print('[DEBUG] License Path: ${_licenseImage?.path}');
-      print('[DEBUG] Insurance Path: ${_insuranceImage?.path}');
       if (_licenseImage == null) {
         _showError("Por favor, sube tu licencia de conducir");
         return;
@@ -116,9 +113,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return;
       }
     }
-
-    print('[DEBUG] Iniciando proceso de signUp con AuthController');
-
+    
     ref
         .read(authControllerProvider.notifier)
         .signUp(
@@ -138,7 +133,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           insurancePath: _insuranceImage?.path,
           referralCode: _referralController.text.trim(),
         );
-    print('[DEBUG] Llamada a signUp enviada al controlador');
   }
 
   void _showError(String message) {

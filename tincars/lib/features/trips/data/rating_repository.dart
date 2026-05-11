@@ -18,8 +18,6 @@ class RatingRepository {
     String? comment,
     required bool raterIsDriver,
   }) async {
-    print('[RATING] Guardando calificación: $stars estrellas para $ratedId en viaje $tripId');
-
     final ratingRef = _firestore.collection('ratings').doc();
     
     // 1. Insertar la calificación
@@ -34,8 +32,6 @@ class RatingRepository {
       'rater_is_driver': raterIsDriver,
       'created_at': FieldValue.serverTimestamp(),
     });
-
-    print('[RATING] Calificación guardada. Actualizando promedio de $ratedId...');
 
     // 2. Recalcular el promedio del usuario calificado
     await _updateAverageRating(ratedId);
@@ -55,8 +51,6 @@ class RatingRepository {
     final total = query.docs.fold<int>(0, (sum, doc) => sum + (doc.data()['stars'] as int));
     final average = total / query.docs.length;
     final roundedAverage = double.parse(average.toStringAsFixed(1));
-
-    print('[RATING] Nuevo promedio para $userId: $roundedAverage (${query.docs.length} calificaciones)');
 
     // Actualizar en la tabla profiles
     await _firestore

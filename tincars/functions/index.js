@@ -1,5 +1,6 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onCall } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const geofire = require("geofire-common");
 
@@ -137,34 +138,51 @@ exports.ontripcreated = onDocumentCreated("trips/{tripId}", async (event) => {
 });
 
 const Stripe = require('stripe');
-// Importante: Debes configurar la variable de entorno 'STRIPE_SECRET_KEY' en Firebase
-// firebase functions:secrets:set STRIPE_SECRET_KEY
-// o usar process.env.STRIPE_SECRET_KEY
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_tu_clave_secreta_aqui');
 
-exports.stripePayments = onCall(async (request) => {
+// Secretos de Stripe definidos en Firebase Secret Manager
+// Subidos con: firebase functions:secrets:set STRIPE_SECRET_KEY / STRIPE_PUBLISHABLE_KEY
+const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+const stripePublishableKey = defineSecret('STRIPE_PUBLISHABLE_KEY');
+
+exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKey] }, async (request) => {
+    const stripe = new Stripe(stripeSecretKey.value());
     const data = request.data;
     const action = data.action;
-    let customerId = data.customerId;
+    
+    // Usar el UID del usuario autenticado directamente desde el contexto de Firebase
+    if (!request.auth) {
+        throw new Error('El usuario debe estar autenticado');
+    }
+    const uid = request.auth.uid;
 
     try {
+        // 1. Buscar el perfil del usuario para obtener su stripe_customer_id
+        const userDoc = await db.collection('profiles').doc(uid).get();
+        let customerId = userDoc.exists ? userDoc.data().stripe_customer_id : null;
+
+        // 2. Si no tiene ID de Stripe o el documento no existe, lo creamos
         if (!customerId) {
-            // Si el cliente no tiene un ID en Stripe, lo creamos
-            const customer = await stripe.customers.create();
+            console.log(`Creando nuevo cliente de Stripe para UID: ${uid}`);
+            const customer = await stripe.customers.create({
+                metadata: { firebaseUID: uid }
+            });
             customerId = customer.id;
+            
+            // Guardar el nuevo ID en Firestore
+            await db.collection('profiles').doc(uid).set({
+                stripe_customer_id: customerId
+            }, { merge: true });
         }
 
         if (action === 'create-payment-intent') {
             const amount = data.amount;
             const currency = data.currency || 'usd';
 
-            // Crear el Ephemeral Key para la versión de API requerida por Flutter Stripe
             const ephemeralKey = await stripe.ephemeralKeys.create(
                 { customer: customerId },
                 { apiVersion: '2023-10-16' }
             );
 
-            // Crear el PaymentIntent (monto en centavos)
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(amount * 100), 
                 currency: currency,
@@ -178,10 +196,10 @@ exports.stripePayments = onCall(async (request) => {
                 paymentIntent: paymentIntent.client_secret,
                 ephemeralKey: ephemeralKey.secret,
                 customer: customerId,
+                publishableKey: stripePublishableKey.value(),
             };
             
         } else if (action === 'create-setup-intent') {
-            // Guardar tarjeta sin cobro ($0)
             const ephemeralKey = await stripe.ephemeralKeys.create(
                 { customer: customerId },
                 { apiVersion: '2023-10-16' }
@@ -196,6 +214,7 @@ exports.stripePayments = onCall(async (request) => {
                 setupIntent: setupIntent.client_secret,
                 ephemeralKey: ephemeralKey.secret,
                 customer: customerId,
+                publishableKey: stripePublishableKey.value(),
             };
             
         } else {
@@ -284,6 +303,172 @@ exports.ontripstatuschanged = onDocumentUpdated("trips/{tripId}", async (event) 
         console.log(`Successfully notified passenger ${passengerId} about status ${after.status}: `, response);
     } catch (error) {
         console.error("Error sending trip status notification:", error);
+    }
+
+    return null;
+});
+
+/**
+ * Atomic trip acceptance function.
+ * Ensures that only one driver can accept a trip.
+ */
+exports.acceptTrip = onCall(async (request) => {
+    const data = request.data;
+    const tripId = data.tripId;
+    const driverId = data.driverId;
+
+    if (!tripId || !driverId) {
+        throw new Error('Missing tripId or driverId');
+    }
+
+    const tripRef = db.collection('trips').doc(tripId);
+
+    try {
+        const result = await db.runTransaction(async (transaction) => {
+            const tripDoc = await transaction.get(tripRef);
+
+            if (!tripDoc.exists) {
+                throw new Error('Trip not found');
+            }
+
+            const tripData = tripDoc.data();
+
+            if (tripData.status !== 'requested') {
+                return { success: false, error: 'TRIP_ALREADY_ACCEPTED' };
+            }
+
+            if (tripData.driver_id) {
+                return { success: false, error: 'TRIP_ALREADY_ACCEPTED' };
+            }
+
+            // Update the trip with driver info and new status
+            transaction.update(tripRef, {
+                status: 'accepted',
+                driver_id: driverId,
+                accepted_at: admin.firestore.FieldValue.serverTimestamp(),
+                updated_at: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            return { success: true };
+        });
+
+        return result;
+
+    } catch (error) {
+        console.error("Error in acceptTrip function:", error);
+        return { success: false, error: error.message };
+    }
+});
+
+/**
+ * Reject trip function for drivers.
+ * Adds the driver ID to the rejected_by array in the trip document.
+ */
+exports.rejectTrip = onCall(async (request) => {
+    const data = request.data;
+    const tripId = data.tripId;
+    const driverId = data.driverId;
+
+    if (!tripId || !driverId) {
+        throw new Error('Missing tripId or driverId');
+    }
+
+    const tripRef = db.collection('trips').doc(tripId);
+
+    try {
+        await tripRef.update({
+            rejected_by: admin.firestore.FieldValue.arrayUnion(driverId),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error in rejectTrip function:", error);
+        return { success: false, error: error.message };
+    }
+});
+
+/**
+ * Triggered when a new message is sent in a trip chat.
+ * Notifies the other participant (driver or passenger).
+ */
+exports.onnewmessage = onDocumentCreated("messages/{messageId}", async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+
+    const messageData = snap.data();
+    const tripId = messageData.trip_id;
+    const senderId = messageData.sender_id;
+    const text = messageData.text;
+
+    if (!tripId || !senderId) return null;
+
+    try {
+        // 1. Fetch trip data to find participants
+        const tripDoc = await db.collection('trips').doc(tripId).get();
+        if (!tripDoc.exists) return null;
+
+        const tripData = tripDoc.data();
+        const passengerId = tripData.passenger_id;
+        const driverId = tripData.driver_id;
+
+        // 2. Determine receiverId
+        let receiverId = null;
+        let senderName = 'Usuario';
+
+        if (senderId === passengerId) {
+            receiverId = driverId;
+            senderName = 'Pasajero';
+        } else if (senderId === driverId) {
+            receiverId = passengerId;
+            senderName = 'Conductor';
+        }
+
+        if (!receiverId) {
+            console.log("No receiver found for message in trip:", tripId);
+            return null;
+        }
+
+        // 3. Get receiver's FCM token
+        const profileSnap = await db.collection('profiles').doc(receiverId).get();
+        if (!profileSnap.exists) return null;
+
+        const fcmToken = profileSnap.data().fcm_token;
+        if (!fcmToken) return null;
+
+        // 4. Send notification
+        const message = {
+            notification: {
+                title: `💬 Nuevo mensaje de ${senderName}`,
+                body: text.length > 100 ? text.substring(0, 97) + '...' : text,
+            },
+            data: {
+                type: 'NEW_MESSAGE',
+                tripId: tripId,
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            token: fcmToken,
+            android: {
+                priority: 'high',
+                notification: {
+                    sound: 'default',
+                    channelId: 'chat_messages_channel',
+                },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1,
+                    },
+                },
+            },
+        };
+
+        const response = await admin.messaging().send(message);
+        console.log(`Successfully notified receiver ${receiverId} about new message in trip ${tripId}:`, response);
+
+    } catch (error) {
+        console.error("Error sending chat notification:", error);
     }
 
     return null;

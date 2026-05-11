@@ -1,3 +1,4 @@
+import 'package:share_plus/share_plus.dart';
 import 'package:tincars/core/utils/app_logger.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -8,19 +9,19 @@ import 'package:geolocator/geolocator.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
-import 'package:tincars/features/trips/presentation/screens/trip_chat_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/passenger_chat_screen.dart';
+import 'package:tincars/features/trips/presentation/controllers/chat_controller.dart';
+import 'package:tincars/core/services/notification_service.dart';
 import 'package:tincars/features/trips/presentation/screens/trip_completion_screen.dart';
-import 'package:tincars/features/trips/presentation/screens/trip_cancellation_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/trip_cancellation_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
-
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/core/utils/marker_utils.dart';
 import 'package:tincars/core/services/maps_service.dart';
-import 'package:tincars/core/utils/map_styles.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
-import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class TripTrackingScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -31,7 +32,7 @@ class TripTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   GoogleMapController? mapController;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -39,7 +40,9 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   Timer? _locationTimer;
   Timer? _waitTimer;
   int _elapsedSeconds = 0;
-  int _waitSecondsRemaining = 300; // 5 minutes
+  int _waitSecondsRemaining = 60; 
+  double _waitFeeAccumulated = 0.0;
+  int _extraWaitSeconds = 0;
   TripStatus? _lastStatus;
 
   // Cache para evitar flickering
@@ -48,14 +51,23 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   BitmapDescriptor? _vehicleIcon;
   final Map<int, BitmapDescriptor> _stopIcons = {};
   String? _lastEmoji;
+  String? _lastVehicleType;
+
+  // Smooth Movement Variables
+  AnimationController? _movementController;
+  LatLng? _oldDriverLoc;
+  LatLng? _targetDriverLoc;
+  double? _oldHeading;
+  double? _targetHeading;
+  LatLng? _smoothDriverLoc;
+  double _smoothHeading = 0;
   bool _isRedirectingToCompletion = false;
   Map<String, dynamic>? _lastDirections;
   LatLng? _lastStart;
   LatLng? _lastEnd;
   Map<String, dynamic>? _driverDirections;
   LatLng? _lastDriverDirectionsLoc;
-  String? _estimatedDistance;
-  String? _estimatedDuration;
+  final MapsService _mapsService = MapsService();
 
   @override
   void initState() {
@@ -67,7 +79,90 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    _startTripTimer();
     _loadMapIcons();
+
+    _movementController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(
+            milliseconds: 2000,
+          ), // Standard update interval
+        )..addListener(() {
+          if (_oldDriverLoc != null && _targetDriverLoc != null) {
+            final lat =
+                _oldDriverLoc!.latitude +
+                (_targetDriverLoc!.latitude - _oldDriverLoc!.latitude) *
+                    _movementController!.value;
+            final lng =
+                _oldDriverLoc!.longitude +
+                (_targetDriverLoc!.longitude - _oldDriverLoc!.longitude) *
+                    _movementController!.value;
+
+            double diff = _targetHeading! - _oldHeading!;
+            while (diff < -180) {
+              diff += 360;
+            }
+            while (diff > 180) {
+              diff -= 360;
+            }
+            final heading = _oldHeading! + diff * _movementController!.value;
+
+            setState(() {
+              _smoothDriverLoc = LatLng(lat, lng);
+              _smoothHeading = heading;
+            });
+          }
+        });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final trip = ref.read(tripStreamProvider(widget.tripId)).asData?.value;
+      if (trip != null) {
+        _updateDirections(trip);
+      }
+    });
+  }
+
+  void _updateDirections(Trip trip) async {
+    final start = trip.pickupLocation;
+    final end = trip.dropoffLocation;
+    final driverLoc = trip.driverLocation ?? trip.pickupLocation;
+    final isToDropoff = trip.status == TripStatus.inProgress;
+
+    // Main Route (Pickup to Dropoff)
+    if (_lastStart != start || _lastEnd != end || _lastDirections == null) {
+      _lastStart = start;
+      _lastEnd = end;
+      try {
+        final directions = await MapsService().getDirections(
+          start,
+          end,
+          waypoints: trip.intermediateStops.map((s) => s.location).toList(),
+        );
+        if (mounted) setState(() => _lastDirections = directions);
+      } catch (e) {
+        AppLogger.log('Error updating main directions: $e');
+      }
+    }
+
+    // Live Driver Route
+    if (_lastDriverDirectionsLoc == null ||
+        Geolocator.distanceBetween(
+              _lastDriverDirectionsLoc!.latitude,
+              _lastDriverDirectionsLoc!.longitude,
+              driverLoc.latitude,
+              driverLoc.longitude,
+            ) >
+            30) {
+      _lastDriverDirectionsLoc = driverLoc;
+      final target = isToDropoff ? trip.dropoffLocation : trip.pickupLocation;
+      try {
+        final directions = await MapsService().getDirections(driverLoc, target);
+        if (mounted) setState(() => _driverDirections = directions);
+      } catch (e) {
+        AppLogger.log('Error updating driver live directions: $e');
+      }
+    }
   }
 
   @override
@@ -76,10 +171,14 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     _tripTimer?.cancel();
     _locationTimer?.cancel();
     _waitTimer?.cancel();
+    _movementController?.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMapIcons([List<TripStop> intermediateStops = const []]) async {
+  Future<void> _loadMapIcons({
+    List<TripStop> intermediateStops = const [],
+    String? vehicleType,
+  }) async {
     final List<Future<BitmapDescriptor>> futures = [
       MarkerUtils.createABMarker(
         letter: 'A',
@@ -93,7 +192,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         foregroundColor: Colors.white,
         label: 'Destino',
       ),
-      MarkerUtils.createVehicleMarker(),
+      MarkerUtils.createVehicleMarker(vehicleType: vehicleType),
     ];
 
     // Add intermediate markers futures
@@ -135,30 +234,31 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   final ValueNotifier<int> _timeNotifier = ValueNotifier<int>(0);
 
   int _getWaitTimeForCategory(String type) {
-    switch (type.toLowerCase()) {
-      case 'essentials-eco':
-        return 180; // 3 minutos
-      case 'essentials_xl':
-        return 180; // 3 minutos
-      case 'executive':
-        return 300; // 5 minutos
-      case 'signature_lux':
-        return 300; // 5 minutos
-      default:
-        return 180;
-    }
+    return ref.read(pricingServiceProvider).getFreeWaitMinutes(type) * 60;
   }
 
   void _startWaitTimer(String? vehicleType) {
     _waitTimer?.cancel();
-    _waitSecondsRemaining = _getWaitTimeForCategory(
-      vehicleType ?? 'essentials',
-    );
+    _waitFeeAccumulated = 0.0;
+    _extraWaitSeconds = 0;
+    
+    // Usamos el valor del service que ahora es 1 min por defecto
+    _waitSecondsRemaining = ref.read(pricingServiceProvider).getFreeWaitMinutes(vehicleType ?? 'essentials') * 60;
+    
     _waitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_waitSecondsRemaining > 0) {
         setState(() => _waitSecondsRemaining--);
       } else {
-        timer.cancel();
+        // Tiempo de espera extra con cargo
+        setState(() {
+          _extraWaitSeconds++;
+          final pricing = ref.read(pricingServiceProvider);
+          final freeSecs = pricing.getFreeWaitMinutes(vehicleType ?? 'essentials') * 60;
+          _waitFeeAccumulated = pricing.calculateWaitFee(
+            vehicleType ?? 'essentials',
+            freeSecs + _extraWaitSeconds,
+          );
+        });
       }
     });
   }
@@ -234,8 +334,12 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       ),
     );
 
-    mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 100), // 100px de padding
+    if (!mounted || mapController == null) return;
+    mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        bounds,
+        165,
+      ), // Increased padding for a wider view during the trip
     );
   }
 
@@ -315,15 +419,29 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
 
   void _handleShareTrip() {
     final shareUrl = 'https://tincars.app/track/${widget.tripId}';
-    // Simulate sharing
-    Clipboard.setData(ClipboardData(text: 'Sigue mi viaje en TINS: $shareUrl'));
+    final text =
+        '¡Hola! Sigue mi viaje en tiempo real con TINS aquí: $shareUrl';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enlace de seguimiento copiado al portapapeles'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    Share.share(text, subject: 'Seguimiento de mi viaje TINS');
+  }
+
+  void _handleShareWhatsApp() async {
+    final shareUrl = 'https://tincars.app/track/${widget.tripId}';
+    final text =
+        '¡Hola! Sigue mi viaje en tiempo real con TINS aquí: $shareUrl';
+    final whatsappUrl = "whatsapp://send?text=${Uri.encodeComponent(text)}";
+
+    if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
+      await launchUrl(Uri.parse(whatsappUrl));
+    } else {
+      // Fallback to web whatsapp or just generic share if app not installed
+      final webUrl = "https://wa.me/?text=${Uri.encodeComponent(text)}";
+      if (await canLaunchUrl(Uri.parse(webUrl))) {
+        await launchUrl(Uri.parse(webUrl));
+      } else {
+        Share.share(text);
+      }
+    }
   }
 
   Future<void> _handleModifyTrip(Trip trip) async {
@@ -334,12 +452,18 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => _AddStopSheet(initialLocation: trip.pickupLocation),
+      builder: (context) => _AddStopSheet(
+        initialLocation: trip.pickupLocation,
+        currentStopsCount: trip.intermediateStops.length,
+      ),
     );
 
     if (result != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recalculando tarifa...'), duration: Duration(seconds: 2)),
+        const SnackBar(
+          content: Text('Recalculando tarifa...'),
+          duration: Duration(seconds: 2),
+        ),
       );
 
       final LatLng newPointLoc = result['location'];
@@ -349,15 +473,20 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       try {
         final driverLoc = trip.driverLocation ?? trip.pickupLocation;
         final originalDistance = trip.distance > 0 ? trip.distance : 0.1;
-        
-        // Estimate distance traveled since pickup
-        final distanceTraveled = Geolocator.distanceBetween(
-          trip.pickupLocation.latitude,
-          trip.pickupLocation.longitude,
-          driverLoc.latitude,
-          driverLoc.longitude,
-        ) / 1000.0;
-        
+
+        // Only calculate distance traveled if the trip has actually started (passenger is in the car)
+        double distanceTraveled = 0.0;
+        if (trip.status == TripStatus.inProgress) {
+          distanceTraveled =
+              Geolocator.distanceBetween(
+                trip.pickupLocation.latitude,
+                trip.pickupLocation.longitude,
+                driverLoc.latitude,
+                driverLoc.longitude,
+              ) /
+              1000.0;
+        }
+
         double newSegmentDistance;
         double newDistance;
         LatLng newDropoff;
@@ -365,38 +494,61 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         List<TripStop> newStops = List.from(trip.intermediateStops);
 
         if (isNewDestination) {
-          final directions = await MapsService().getDirections(driverLoc, newPointLoc);
+          final LatLng startRoutePoint = trip.status == TripStatus.inProgress
+              ? driverLoc
+              : trip.pickupLocation;
+
+          final directions = await MapsService().getDirections(
+            startRoutePoint,
+            newPointLoc,
+          );
           newSegmentDistance = directions['distance'];
           newDistance = distanceTraveled + newSegmentDistance;
           newDropoff = newPointLoc;
           newDropoffAddress = newPointAddress;
         } else {
           // Add stop before current destination
-          final directionsToStop = await MapsService().getDirections(driverLoc, newPointLoc);
-          final directionsToFinal = await MapsService().getDirections(newPointLoc, trip.dropoffLocation);
-          newSegmentDistance = directionsToStop['distance'] + directionsToFinal['distance'];
+          final LatLng startRoutePoint = trip.status == TripStatus.inProgress
+              ? driverLoc
+              : trip.pickupLocation;
+
+          final directionsToStop = await MapsService().getDirections(
+            startRoutePoint,
+            newPointLoc,
+          );
+          final directionsToFinal = await MapsService().getDirections(
+            newPointLoc,
+            trip.dropoffLocation,
+          );
+          newSegmentDistance =
+              directionsToStop['distance'] + directionsToFinal['distance'];
           newDistance = distanceTraveled + newSegmentDistance;
           newDropoff = trip.dropoffLocation;
           newDropoffAddress = trip.dropoffAddress;
-          newStops.add(TripStop(location: newPointLoc, address: newPointAddress));
+          newStops.add(
+            TripStop(location: newPointLoc, address: newPointAddress),
+          );
         }
 
-        final double newTotalPrice = PricingService().calculateModifiedTripPrice(
-          originalPrice: trip.price,
-          originalDistance: originalDistance,
-          distanceTraveled: distanceTraveled,
-          newSegmentDistance: newSegmentDistance,
-          vehicleType: trip.vehicleType,
-        );
+        final double newTotalPrice = ref.read(pricingServiceProvider)
+            .calculateModifiedTripPrice(
+              originalPrice: trip.price,
+              originalDistance: originalDistance,
+              distanceTraveled: distanceTraveled,
+              newSegmentDistance: newSegmentDistance,
+              vehicleType: trip.vehicleType,
+            );
 
-        await ref.read(tripControllerProvider.notifier).modifyTrip(
-          tripId: trip.id,
-          newStops: newStops,
-          newPrice: newTotalPrice,
-          newDistance: newDistance,
-          newDropoff: newDropoff,
-          newDropoffAddress: newDropoffAddress,
-        );
+        await ref
+            .read(tripControllerProvider.notifier)
+            .modifyTrip(
+              tripId: trip.id,
+              newStops: newStops,
+              newPrice: newTotalPrice,
+              newDistance: newDistance,
+              newDropoff: newDropoff,
+              newDropoffAddress: newDropoffAddress,
+            );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -406,7 +558,10 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al modificar: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Error al modificar: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -458,6 +613,27 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Listen for new chat messages
+    ref.listen(tripMessagesProvider(widget.tripId), (previous, next) {
+      final prevMessages = previous?.value ?? [];
+      final nextMessages = next.value ?? [];
+
+      if (nextMessages.isNotEmpty &&
+          nextMessages.length > prevMessages.length) {
+        final lastMessage = nextMessages.last;
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+        // Only notify if the message is from the OTHER user
+        if (lastMessage.senderId != currentUserId) {
+          NotificationService.instance.showChatMessageNotification(
+            senderName: 'Conductor',
+            messageText: lastMessage.text,
+            tripId: widget.tripId,
+          );
+        }
+      }
+    });
+
     final tripAsync = ref.watch(tripStreamProvider(widget.tripId));
 
     ref.listen<AsyncValue<Trip>>(tripStreamProvider(widget.tripId), (
@@ -467,16 +643,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       final trip = next.asData?.value;
       if (trip != null) {
         final prevTrip = prev?.asData?.value;
-        if (prevTrip != null) {
-          if (prevTrip.driverLocation != trip.driverLocation) {
-            print(
-              'TripTracking: [LOCATION_CHANGE] Conductor se movió a: ${trip.driverLocation}',
-            );
-          }
-          if (prevTrip.status != trip.status) {
-            print('TripTracking: [STATUS_CHANGE] Nuevo estado: ${trip.status}');
-          }
-        }
+        if (prevTrip != null) {}
 
         if (trip.status == TripStatus.completed &&
             !_isRedirectingToCompletion) {
@@ -498,26 +665,50 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
           AppLogger.log('[PASAJERO] Viaje cancelado. PostFrame para volver.');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            context.go('/home');
+            // Volver al home de forma segura
+            Navigator.of(context).popUntil((route) => route.isFirst);
           });
+        }
+
+        // Update directions on status or location change
+        if (prevTrip?.status != trip.status ||
+            (prevTrip != null &&
+                trip.driverLocation != null &&
+                prevTrip.driverLocation != trip.driverLocation &&
+                Geolocator.distanceBetween(
+                      prevTrip.driverLocation!.latitude,
+                      prevTrip.driverLocation!.longitude,
+                      trip.driverLocation!.latitude,
+                      trip.driverLocation!.longitude,
+                    ) >
+                    30) ||
+            prevTrip?.intermediateStops.length !=
+                trip.intermediateStops.length) {
+          _updateDirections(trip);
         }
       }
     });
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: tripAsync.when(
+        skipLoadingOnRefresh: true, // Crucial for preventing flickers
         data: (trip) {
           if (trip == null) {
             return const Center(child: Text('Viaje no encontrado'));
           }
 
-          // Check if icons need to be reloaded (if stops count changed)
-          if (_stopIcons.length != trip.intermediateStops.length) {
-            _loadMapIcons(trip.intermediateStops);
+          // Check if icons need to be reloaded (if stops count or vehicle type changed)
+          if (_stopIcons.length != trip.intermediateStops.length ||
+              _lastVehicleType != trip.vehicleType) {
+            _lastVehicleType = trip.vehicleType;
+            _loadMapIcons(
+              intermediateStops: trip.intermediateStops,
+              // Removed vehicleType to use the generic 'old' car icon
+            );
           }
 
           final driverLoc = trip.driverLocation;
-
           final driverAsync = trip.driverId != null
               ? ref.watch(otherUserProfileProvider(trip.driverId!))
               : const AsyncValue.data(null);
@@ -525,14 +716,41 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               ? ref.watch(otherDriverProfileProvider(trip.driverId!))
               : const AsyncValue.data(null);
 
-          // Auto-follow conductor durante la aproximación e inProgress
-          if ((trip.status == TripStatus.accepted ||
-                  trip.status == TripStatus.arrived ||
-                  trip.status == TripStatus.inProgress) &&
-              driverLoc != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _moveCameraToDriver(driverLoc);
-            });
+          // Auto-follow conductor e Interpolación de movimiento
+          if (driverLoc != null) {
+            // SNAP TO ROAD LOGIC (Passenger side)
+            LatLng processedLoc = driverLoc;
+            final polyline = _driverDirections?['polyline'] as List<LatLng>?;
+            if (polyline != null && polyline.isNotEmpty) {
+              processedLoc = _mapsService.findNearestPointOnPolyline(
+                driverLoc,
+                polyline,
+              );
+            }
+
+            // Inicializar ubicación suave si es nula (primera vez)
+            if (_smoothDriverLoc == null) {
+              _smoothDriverLoc = processedLoc;
+              _smoothHeading = (trip.driverHeading ?? 0).toDouble();
+              _targetDriverLoc = processedLoc;
+              _targetHeading = _smoothHeading;
+            }
+
+            if (_targetDriverLoc != processedLoc) {
+              _oldDriverLoc = _smoothDriverLoc ?? processedLoc;
+              _targetDriverLoc = processedLoc;
+              _oldHeading = _smoothHeading;
+              _targetHeading = (trip.driverHeading ?? 0).toDouble();
+              _movementController?.forward(from: 0);
+            }
+
+            if (trip.status == TripStatus.accepted ||
+                trip.status == TripStatus.arrived ||
+                trip.status == TripStatus.inProgress) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _moveCameraToDriver(_smoothDriverLoc ?? driverLoc);
+              });
+            }
           }
 
           // Compartir ubicación del pasajero si el viaje está en curso, aceptado o el conductor ha llegado.
@@ -549,6 +767,20 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               _lastStatus != TripStatus.inProgress) {
             _lastStatus = TripStatus.inProgress;
             _waitTimer?.cancel();
+            
+            // Si hubo cargos por espera, actualizamos el precio del viaje en DB
+            if (_waitFeeAccumulated > 0) {
+              final newPrice = trip.price + _waitFeeAccumulated;
+              final waitFee = _waitFeeAccumulated;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(tripControllerProvider.notifier).updatePrice(
+                  trip.id, 
+                  newPrice,
+                  waitFee: waitFee,
+                );
+              });
+            }
+
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => _startTripTimer(),
             );
@@ -579,28 +811,31 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             ),
           );
         },
-        loading: () {
-          return const Center(child: CircularProgressIndicator());
-        },
-        error: (e, s) {
-          print('TripTracking: [ERROR] Fallo al cargar viaje: $e');
-          print('TripTracking: [STACK] $s');
-          return Center(child: Text('Error: $e'));
-        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Error: $e')),
       ),
     );
   }
 
   void _fitBounds(Map<String, dynamic> boundsData) {
     try {
+      if (boundsData['southwest'] == null || boundsData['northeast'] == null)
+        return;
+      if (boundsData['southwest']['lat'] == null ||
+          boundsData['southwest']['lng'] == null)
+        return;
+      if (boundsData['northeast']['lat'] == null ||
+          boundsData['northeast']['lng'] == null)
+        return;
+
       final bounds = LatLngBounds(
         southwest: LatLng(
-          boundsData['southwest']['lat'],
-          boundsData['southwest']['lng'],
+          (boundsData['southwest']['lat'] as num).toDouble(),
+          (boundsData['southwest']['lng'] as num).toDouble(),
         ),
         northeast: LatLng(
-          boundsData['northeast']['lat'],
-          boundsData['northeast']['lng'],
+          (boundsData['northeast']['lat'] as num).toDouble(),
+          (boundsData['northeast']['lng'] as num).toDouble(),
         ),
       );
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -631,18 +866,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       _loadPassengerEmojiMarker(trip.passengerEmoji!);
     }
 
-    if (_lastStart != start || _lastEnd != end) {
-      _lastStart = start;
-      _lastEnd = end;
-      MapsService().getDirections(
-        start, 
-        end,
-        waypoints: trip.intermediateStops.map((s) => s.location).toList(),
-      ).then((directions) {
-        if (mounted) setState(() => _lastDirections = directions);
-      });
-    }
-
     Set<Polyline> polylines = {};
     if (_lastDirections != null) {
       final points = _lastDirections!['polyline'] as List<LatLng>?;
@@ -651,9 +874,9 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
           Polyline(
             polylineId: const PolylineId('route_polyline'),
             points: points,
-            color: isToDropoff ? Colors.green : Colors.blue.withOpacity(0.8),
+            color: isToDropoff ? Colors.green : Colors.blue,
             width: 5,
-            patterns: isToDropoff ? [] : [PatternItem.dot, PatternItem.gap(10)],
+            patterns: [], // Always solid
             startCap: Cap.roundCap,
             endCap: Cap.roundCap,
           ),
@@ -661,30 +884,17 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       }
     }
 
-    // Live Route from Driver
-    if (_lastDriverDirectionsLoc == null ||
-        Geolocator.distanceBetween(
-              _lastDriverDirectionsLoc!.latitude,
-              _lastDriverDirectionsLoc!.longitude,
-              driverLoc.latitude,
-              driverLoc.longitude,
-            ) >
-            20) {
-      _lastDriverDirectionsLoc = driverLoc;
-      final target = isToDropoff ? trip.dropoffLocation : trip.pickupLocation;
-      MapsService().getDirections(driverLoc, target).then((directions) {
-        if (mounted) setState(() => _driverDirections = directions);
-      });
-    }
-
-    if (_driverDirections != null) {
+    // Only show driver_live_route if NOT in progress and we want that extra line (usually confusing)
+    // The user asked for "only blue and green", so we disable this extra dashed line.
+    /*
+    if (_driverDirections != null && trip.status != TripStatus.inProgress) {
       final points = _driverDirections!['polyline'] as List<LatLng>?;
       if (points != null) {
         polylines.add(
           Polyline(
             polylineId: const PolylineId('driver_live_route'),
             points: points,
-            color: Colors.blueAccent.withValues(alpha: 0.6),
+            color: Colors.blueAccent.withOpacity(0.4),
             width: 4,
             patterns: [PatternItem.dash(15), PatternItem.gap(10)],
             startCap: Cap.roundCap,
@@ -694,24 +904,33 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         );
       }
     }
+    */
+
+    final LatLng displayDriverLoc = _smoothDriverLoc ?? driverLoc;
+    final double displayHeading = _smoothHeading;
 
     final Set<Marker> markers = {
       Marker(
         markerId: const MarkerId('driver'),
-        position: driverLoc,
+        position: displayDriverLoc,
         icon: _vehicleIcon ?? BitmapDescriptor.defaultMarker,
-        rotation: trip.driverHeading ?? 0,
+        rotation: displayHeading,
+        anchor: const Offset(0.5, 0.5),
+        flat: true,
       ),
       Marker(
-        markerId: const MarkerId('passenger'),
-        position: trip.passengerLocation ?? trip.pickupLocation,
+        markerId: const MarkerId('pickup_point_a'),
+        position: trip.pickupLocation,
         icon: _pickupIcon ?? BitmapDescriptor.defaultMarker,
+        infoWindow: const InfoWindow(title: 'Punto de Recogida'),
       ),
       for (int i = 0; i < trip.intermediateStops.length; i++)
         Marker(
           markerId: MarkerId('stop_$i'),
           position: trip.intermediateStops[i].location,
-          icon: _stopIcons[i] ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          icon:
+              _stopIcons[i] ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           alpha: trip.intermediateStops[i].isCompleted ? 0.5 : 1.0,
           infoWindow: InfoWindow(title: 'Parada ${i + 1}'),
         ),
@@ -722,55 +941,108 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       ),
     };
 
-    return Stack(
-      children: [
-        GoogleMap(
-          onMapCreated: (controller) {
-            mapController = controller;
-            mapController?.setMapStyle(MapStyles.silverStyle);
-            if (_lastDirections != null) _fitBounds(_lastDirections!['bounds']);
-          },
-          initialCameraPosition: CameraPosition(
-            target: trip.pickupLocation,
-            zoom: 15,
+    return Container(
+      color: Colors.white,
+      child: Stack(
+        children: [
+          GoogleMap(
+            key: ValueKey('tracking_map_${widget.tripId}'),
+            onMapCreated: (controller) {
+              mapController = controller;
+              // Removed silver style
+              if (_lastDirections != null)
+                _fitBounds(_lastDirections!['bounds']);
+            },
+            initialCameraPosition: CameraPosition(
+              target: trip.pickupLocation,
+              zoom: 15,
+            ),
+            markers: markers,
+            polylines: polylines,
+            zoomControlsEnabled: false,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            compassEnabled: false,
+            mapToolbarEnabled: false,
           ),
-          markers: markers,
-          polylines: polylines,
-          zoomControlsEnabled: false,
-          myLocationEnabled: false,
-          myLocationButtonEnabled: false,
-          compassEnabled: false,
-          mapToolbarEnabled: false,
-        ),
-        // Reduced and more elegant floating status HUD
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 20,
-          left: 40,
-          right: 40,
-          child: _buildTopStatusHUD(trip, l10n),
-        ),
-        // Floating action buttons removed as requested by user
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: _buildBottomPanel(trip, driverAsync, driverProfileAsync, l10n),
-        ),
-      ],
+          // Reduced and more elegant floating status HUD
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 20,
+            left: 40,
+            right: 40,
+            child: Column(
+              children: [
+                _buildTopStatusHUD(trip, l10n, driverProfileAsync),
+                if (trip.status == TripStatus.accepted &&
+                    _driverDirections?['duration'] != null)
+                  const SizedBox(height: 12),
+              ],
+            ),
+          ),
+          // Premium Draggable Panel
+          DraggableScrollableSheet(
+            initialChildSize: 0.38,
+            minChildSize: 0.38,
+            maxChildSize: 0.88,
+            snap: true,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(32),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 30,
+                      offset: const Offset(0, -10),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  child: _buildBottomPanelContent(
+                    trip,
+                    driverAsync,
+                    driverProfileAsync,
+                    l10n,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTopStatusHUD(Trip trip, AppLocalizations l10n) {
+  Future<void> _makePhoneCall(String? phoneNumber) async {
+    if (phoneNumber == null) return;
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
+  }
+
+  Widget _buildTopStatusHUD(
+    Trip trip,
+    AppLocalizations l10n,
+    AsyncValue<dynamic> profileAsync,
+  ) {
     try {
       if (trip.status == TripStatus.arrived) {
+        final bool isExtraWait = _waitSecondsRemaining <= 0;
+        
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.green.shade600,
+            color: isExtraWait ? Colors.orange.shade700 : Colors.green.shade600,
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.green.withOpacity(0.35),
+                color: (isExtraWait ? Colors.orange : Colors.green).withOpacity(0.35),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
@@ -779,15 +1051,21 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+              Icon(
+                isExtraWait ? Icons.warning_amber_rounded : Icons.timer_outlined, 
+                color: Colors.white, 
+                size: 20
+              ),
               const SizedBox(width: 12),
               Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'EL CONDUCTOR TE ESTÁ ESPERANDO',
-                    style: TextStyle(
+                  Text(
+                    isExtraWait 
+                        ? 'TIEMPO DE ESPERA AGOTADO' 
+                        : 'EL CONDUCTOR TE ESTÁ ESPERANDO',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
                       fontSize: 10,
@@ -795,7 +1073,9 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                     ),
                   ),
                   Text(
-                    'TIEMPO DE CORTESÍA: ${_formatElapsed(_waitSecondsRemaining)}',
+                    isExtraWait
+                        ? 'CARGO EXTRA POR ESPERA: ${_formatElapsed(_extraWaitSeconds)} (+\$${_waitFeeAccumulated.toStringAsFixed(2)})'
+                        : 'TIEMPO DE CORTESÍA: ${_formatElapsed(_waitSecondsRemaining)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -810,7 +1090,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       }
 
       final driverEtaMinutes = _driverDirections?['duration'];
-      final statusText = _getStatusText(trip.status, l10n).toUpperCase();
 
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -824,7 +1103,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade100),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -838,14 +1116,19 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trip.status == TripStatus.inProgress 
-                      ? (() {
-                          final pendingIndex = trip.intermediateStops.indexWhere((s) => !s.isCompleted);
-                          return pendingIndex != -1 
-                            ? 'VIAJANDO A PARADA ${pendingIndex + 1}'
-                            : 'VIAJANDO AL DESTINO';
-                        })()
-                      : statusText,
+                    trip.status == TripStatus.inProgress
+                        ? (() {
+                            final pendingIndex = trip.intermediateStops
+                                .indexWhere((s) => !s.isCompleted);
+                            return pendingIndex != -1
+                                ? 'VIAJANDO A PARADA ${pendingIndex + 1}'
+                                : 'VIAJANDO AL DESTINO';
+                          })()
+                        : _getStatusText(
+                            trip.status,
+                            l10n,
+                            vehicleModel: profileAsync.value?.vehicleModel,
+                          ).toUpperCase(),
                     style: const TextStyle(
                       color: Colors.black87,
                       fontWeight: FontWeight.w900,
@@ -857,11 +1140,22 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                   if (trip.status == TripStatus.accepted &&
                       driverEtaMinutes != null)
                     Text(
-                      'LLEGA EN $driverEtaMinutes MIN'.toUpperCase(),
+                      'LLEGA EN ${driverEtaMinutes.round()} MIN'.toUpperCase(),
                       style: TextStyle(
                         color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  if (trip.status == TripStatus.arrived)
+                    Text(
+                      'EL CONDUCTOR LLEGÓ'.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
                       ),
                     ),
                 ],
@@ -889,8 +1183,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         ),
       );
     } catch (e, s) {
-      print('TripTracking: [HUD_CRASH] $e');
-      print('TripTracking: [HUD_STACK] $s');
       return const SizedBox.shrink();
     }
   }
@@ -930,172 +1222,271 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     );
   }
 
-  Widget _buildBottomPanel(
+  Widget _buildBottomPanelContent(
     Trip trip,
     AsyncValue<dynamic> driverAsync,
-    AsyncValue<dynamic> driverProfileAsync, // New
-    AppLocalizations l10n,
-  ) {
-    try {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildDriverRow(trip, driverAsync, driverProfileAsync, l10n),
-            const SizedBox(height: 20),
-            _buildVehicleInfoSection(trip, driverProfileAsync, l10n),
-            const SizedBox(height: 20),
-            _buildRouteTimeline(trip),
-            const SizedBox(height: 12),
-          ],
-        ),
-      );
-    } catch (e, s) {
-      print('TripTracking: [PANEL_CRASH] $e');
-      print('TripTracking: [PANEL_STACK] $s');
-      return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildVehicleInfoSection(
-    Trip trip,
     AsyncValue<dynamic> driverProfileAsync,
     AppLocalizations l10n,
   ) {
-    final profile = driverProfileAsync.value;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              width: 48,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           ),
-          child: const Icon(
-            Icons.directions_car_filled_rounded,
-            color: Colors.black87,
-          ),
+          const SizedBox(height: 24),
+
+          // 1. Driver Row (Avatar + Name + Actions)
+          _buildDriverRow(trip, driverAsync, driverProfileAsync, l10n),
+
+          const SizedBox(height: 12),
+
+          const SizedBox(height: 24),
+
+          // 2. Vehicle Info (Compact)
+          _buildVehicleInfo(trip, driverProfileAsync),
+
+          const SizedBox(height: 24),
+
+          // 3. Dynamic "Change Route" Button (Redesigned)
+          if (trip.status == TripStatus.accepted ||
+              trip.status == TripStatus.arrived ||
+              trip.status == TripStatus.inProgress)
+            _buildChangeRouteButton(trip),
+
+          const SizedBox(height: 24),
+
+          // 4. Route Timeline (Address)
+          _buildRouteTimeline(trip),
+
+          const SizedBox(height: 24),
+
+          // 5. Price
+          _buildPriceInfo(trip),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChangeRouteButton(Trip trip) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2962FF), Color(0xFF00B0FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2962FF).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _handleModifyTrip(trip),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  profile?.vehicleModel ?? trip.vehicleType.toUpperCase(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                    color: Colors.black87,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add_location_alt_rounded,
+                    color: Colors.white,
+                    size: 18,
                   ),
                 ),
-                if (profile?.vehicleColor != null) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Colors.black26,
-                      shape: BoxShape.circle,
-                    ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Cambiar ruta',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    profile!.vehicleColor!.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
-            Row(
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleInfo(Trip trip, AsyncValue<dynamic> driverProfileAsync) {
+    final profile = driverProfileAsync.asData?.value;
+    if (profile == null) return const SizedBox.shrink();
+
+    // Map vehicle type to asset
+    String vehicleAsset = 'assets/vehiculos/auto.png';
+    final typeStr = profile.vehicleType
+        .toString()
+        .split('.')
+        .last
+        .toLowerCase();
+    if (typeStr.contains('xl')) {
+      vehicleAsset = 'assets/vehiculos/essentialxl.png';
+    } else if (typeStr.contains('essential')) {
+      vehicleAsset = 'assets/vehiculos/essentials.png';
+    } else if (typeStr.contains('executive')) {
+      vehicleAsset = 'assets/vehiculos/executive.png';
+    } else if (typeStr.contains('signature')) {
+      vehicleAsset = 'assets/vehiculos/signatuve.png';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Image.asset(vehicleAsset, width: 80, height: 45, fit: BoxFit.contain),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profile?.vehiclePlate.toUpperCase() ?? '...',
+                  profile.vehicleModel,
                   style: const TextStyle(
-                    color: Colors.black87,
                     fontWeight: FontWeight.w900,
-                    fontSize: 14,
+                    fontSize: 15,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  profile.vehiclePlate.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
                     letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[400],
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.amber.withOpacity(0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    'PLACA',
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceInfo(Trip trip) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "TARIFA ESTIMADA",
                     style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 8,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 0.5,
                     ),
                   ),
+                  Text(
+                    trip.paymentMethod.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                NumberFormat.currency(
+                  symbol: r'$',
+                  decimalDigits: 2,
+                ).format(trip.price + (trip.status == TripStatus.arrived ? _waitFeeAccumulated : 0.0)),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                ),
+              ),
+            ],
+          ),
+          if (_waitFeeAccumulated > 0 && trip.status == TripStatus.arrived) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Divider(),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Cargo por espera",
+                  style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "+\$${_waitFeeAccumulated.toStringAsFixed(2)}",
+                  style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ],
-        ),
-        const Spacer(),
+        ],
+      ),
+    );
+  }
 
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '\$${trip.price.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-                color: Colors.black87,
+  Widget _buildPulseIndicator(Color color) {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color.withOpacity(_pulseAnimation.value),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.4 * _pulseAnimation.value),
+                blurRadius: 4,
+                spreadRadius: 2,
               ),
-            ),
-            Text(
-              l10n.fare.toUpperCase(),
-              style: TextStyle(
-                color: Colors.black.withOpacity(0.3),
-                fontWeight: FontWeight.w800,
-                fontSize: 10,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1138,55 +1529,56 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     AsyncValue<dynamic> driverProfileAsync,
     AppLocalizations l10n,
   ) {
-    return driverAsync.when(
-      data: (driver) {
-        return Row(
-          children: [
-            _buildDriverAvatar(driver, trip.status),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+    final driver = driverAsync.asData?.value;
+
+    return Row(
+      children: [
+        // Driver Photo
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: Colors.grey[200],
+          backgroundImage: driver?.avatarUrl != null
+              ? NetworkImage(driver!.avatarUrl!)
+              : null,
+          child: driver?.avatarUrl == null
+              ? const Icon(Icons.person, color: Colors.grey)
+              : null,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                driver?.fullName ?? l10n.driver,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Row(
                 children: [
+                  const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                  const SizedBox(width: 2),
                   Text(
-                    driver?.fullName ?? l10n.driver,
+                    '${driver?.averageRating?.toStringAsFixed(1) ?? "5.0"}',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: -0.5,
                       color: Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        color: Colors.amber,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${driver?.averageRating?.toStringAsFixed(1) ?? "5.0"}',
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
-            ),
-            _buildActionButtons(trip, driver, l10n),
-          ],
-        );
-      },
-      loading: () => const Center(child: LinearProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error: $e')),
+            ],
+          ),
+        ),
+        _buildActionButtons(trip, driver, l10n),
+      ],
     );
   }
 
@@ -1220,10 +1612,10 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => TripChatScreen(
+                      builder: (context) => PassengerChatScreen(
                         tripId: trip.id,
-                        otherUserId: trip.driverId ?? '',
-                        otherUserName: driver?.fullName ?? l10n.driver,
+                        driverId: trip.driverId ?? '',
+                        driverName: driver?.fullName ?? l10n.driver,
                       ),
                     ),
                   );
@@ -1271,9 +1663,20 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: const Icon(Icons.share_rounded, color: Colors.blue),
+              leading: const Icon(Icons.share_rounded, color: Colors.green),
               title: const Text(
-                'Compartir viaje',
+                'Compartir por WhatsApp',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _handleShareWhatsApp();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.more_horiz_rounded, color: Colors.blue),
+              title: const Text(
+                'Otras opciones de compartido',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               onTap: () {
@@ -1281,9 +1684,14 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                 _handleShareTrip();
               },
             ),
-            if (trip.status == TripStatus.accepted || trip.status == TripStatus.arrived || trip.status == TripStatus.inProgress)
+            if (trip.status == TripStatus.accepted ||
+                trip.status == TripStatus.arrived ||
+                trip.status == TripStatus.inProgress)
               ListTile(
-                leading: const Icon(Icons.add_location_alt_rounded, color: Colors.orange),
+                leading: const Icon(
+                  Icons.add_location_alt_rounded,
+                  color: Colors.orange,
+                ),
                 title: const Text(
                   'Modificar destino / Añadir parada',
                   style: TextStyle(fontWeight: FontWeight.w700),
@@ -1373,7 +1781,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             address: trip.pickupAddress,
             isCompleted: true,
           ),
-          
+
           if (trip.intermediateStops.isNotEmpty) ...[
             for (var stop in trip.intermediateStops) ...[
               _buildTimelineDivider(),
@@ -1401,11 +1809,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   Widget _buildTimelineDivider() {
     return Padding(
       padding: const EdgeInsets.only(left: 11),
-      child: Container(
-        width: 2,
-        height: 15,
-        color: Colors.grey.shade300,
-      ),
+      child: Container(width: 2, height: 15, color: Colors.grey.shade300),
     );
   }
 
@@ -1455,23 +1859,53 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     }
   }
 
-  String _getStatusText(TripStatus status, AppLocalizations l10n) {
+  String _getStatusText(
+    TripStatus status,
+    AppLocalizations l10n, {
+    String? vehicleModel,
+  }) {
+    final vehicle = vehicleModel ?? 'Tu conductor';
     switch (status) {
       case TripStatus.accepted:
-        return 'Tu conductor va en camino';
+        return '$vehicle va en camino';
       case TripStatus.arrived:
-        return 'El conductor ha llegado';
+        return '$vehicle ha llegado';
       case TripStatus.inProgress:
         return 'Viaje en curso';
+      case TripStatus.cancelled:
+        return 'Viaje cancelado';
       default:
         return 'Buscando conductor...';
     }
+  }
+
+  String _getStatusLabel(TripStatus status, AppLocalizations l10n) {
+    switch (status) {
+      case TripStatus.accepted:
+        return 'En camino';
+      case TripStatus.arrived:
+        return 'El conductor llegó';
+      case TripStatus.inProgress:
+        return 'En viaje';
+      case TripStatus.cancelled:
+        return 'Cancelado';
+      default:
+        return 'Estado desconocido';
+    }
+  }
+
+  IconData _getPaymentIcon() {
+    return Icons.credit_card_rounded;
   }
 }
 
 class _AddStopSheet extends StatefulWidget {
   final LatLng initialLocation;
-  const _AddStopSheet({required this.initialLocation});
+  final int currentStopsCount;
+  const _AddStopSheet({
+    required this.initialLocation,
+    required this.currentStopsCount,
+  });
 
   @override
   State<_AddStopSheet> createState() => _AddStopSheetState();
@@ -1490,15 +1924,23 @@ class _AddStopSheetState extends State<_AddStopSheet> {
       return;
     }
     try {
-      final suggestions = await _mapsService.getAutocompleteSuggestions(val, _sessionToken);
+      final suggestions = await _mapsService.getAutocompleteSuggestions(
+        val,
+        _sessionToken,
+      );
       if (mounted) setState(() => _suggestions = suggestions);
     } catch (_) {}
   }
 
-  void _onSelectSuggestion(Map<String, dynamic> suggestion, bool asDestination) async {
+  void _onSelectSuggestion(
+    Map<String, dynamic> suggestion,
+    bool asDestination,
+  ) async {
     setState(() => _isLoading = true);
     try {
-      final location = await _mapsService.getPlaceDetails(suggestion['place_id']);
+      final location = await _mapsService.getPlaceDetails(
+        suggestion['place_id'],
+      );
       if (mounted) {
         Navigator.pop(context, {
           'location': location,
@@ -1509,7 +1951,9 @@ class _AddStopSheetState extends State<_AddStopSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -1521,12 +1965,23 @@ class _AddStopSheetState extends State<_AddStopSheet> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(height: 20),
-          const Text('Modificar Viaje', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Modificar Viaje',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          const Text('Si cambias el destino o añades una parada, la tarifa se recalculará según la distancia recorrida y el nuevo trayecto.', 
-            textAlign: TextAlign.center, 
+          const Text(
+            'Si cambias el destino o añades una parada, la tarifa se recalculará según la distancia recorrida y el nuevo trayecto.',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 20),
@@ -1537,7 +1992,10 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.grey[100],
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
             ),
             onChanged: _onSearchChanged,
           ),
@@ -1551,20 +2009,35 @@ class _AddStopSheetState extends State<_AddStopSheet> {
                 return ListTile(
                   leading: const Icon(Icons.location_on_outlined),
                   title: Text(s['structured_formatting']['main_text'] ?? ''),
-                  subtitle: Text(s['structured_formatting']['secondary_text'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                    s['structured_formatting']['secondary_text'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   onTap: () {
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('¿Cómo desea modificar?'),
-                        content: const Text('Seleccione si desea cambiar el destino final o añadir este punto como una parada intermedia.'),
+                        content: const Text(
+                          'Seleccione si desea cambiar el destino final o añadir este punto como una parada intermedia.',
+                        ),
                         actions: [
                           TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _onSelectSuggestion(s, false);
-                            },
-                            child: const Text('AÑADIR PARADA'),
+                            onPressed: widget.currentStopsCount >= 2
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    _onSelectSuggestion(s, false);
+                                  },
+                            child: Text(
+                              'AÑADIR PARADA',
+                              style: TextStyle(
+                                color: widget.currentStopsCount >= 2
+                                    ? Colors.grey
+                                    : Theme.of(context).primaryColor,
+                              ),
+                            ),
                           ),
                           ElevatedButton(
                             onPressed: () {

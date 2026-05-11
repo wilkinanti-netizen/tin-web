@@ -13,7 +13,6 @@ class AuthController extends _$AuthController {
   }
 
   Future<void> signIn(String email, String password) async {
-    print('[DEBUG] AuthController: Iniciando signIn');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref
@@ -21,11 +20,7 @@ class AuthController extends _$AuthController {
           .signInWithEmailAndPassword(email, password),
     );
     if (state.hasError) {
-      print('[DEBUG] AuthController: Error en signIn: ${state.error}');
     } else {
-      print(
-        '[DEBUG] AuthController: signIn completado con éxito, vinculando dispositivo...',
-      );
       final user = ref.read(authRepositoryProvider).currentUser;
       if (user != null) {
         final deviceId = await SessionService.getUniqueDeviceId();
@@ -53,18 +48,10 @@ class AuthController extends _$AuthController {
     String? insurancePath,
     String? referralCode,
   }) async {
-    print('[DEBUG] AuthController: Entering signUp method');
-    print('[DEBUG] AuthController: email=$email, isDriver=$isDriver');
-    if (isDriver) {
-      print('[DEBUG] AuthController: Documents -> License: $licensePath, Insurance: $insurancePath');
-    }
-    
     state = const AsyncValue.loading();
-    print('[DEBUG] AuthController: state set to loading');
 
     state = await AsyncValue.guard(
       () {
-        print('[DEBUG] AuthController: Calling repository.createUserWithEmailAndPassword');
         return ref
             .read(authRepositoryProvider)
             .createUserWithEmailAndPassword(
@@ -88,36 +75,29 @@ class AuthController extends _$AuthController {
     );
 
     if (state.hasError) {
-      print('[DEBUG] AuthController: Error en signUp: ${state.error}');
     } else {
-      print('[DEBUG] AuthController: signUp completado con éxito');
     }
   }
 
   Future<void> signInWithPhone(String phone) async {
-    print('[DEBUG] AuthController: Enviando OTP a $phone');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signInWithPhone(phone),
     );
     if (state.hasError) {
-      print('[DEBUG] AuthController: Error enviando OTP: ${state.error}');
     }
   }
 
   Future<void> verifyOtp(String phone, String token) async {
-    print('[DEBUG] AuthController: Verificando OTP para $phone');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).verifyPhoneOtp(phone, token),
     );
     if (state.hasError) {
-      print('[DEBUG] AuthController: Error verificando OTP: ${state.error}');
     }
   }
 
   Future<void> signInWithGoogle() async {
-    print('[DEBUG] AuthController: Iniciando Google Sign In');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signInWithGoogle(),
@@ -125,7 +105,6 @@ class AuthController extends _$AuthController {
   }
 
   Future<void> signInWithApple() async {
-    print('[DEBUG] AuthController: Iniciando Apple Sign In');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signInWithApple(),
@@ -133,11 +112,9 @@ class AuthController extends _$AuthController {
   }
 
   Future<void> signOut() async {
-    print('[DEBUG] AuthController: Iniciando signOut');
     // Invalidate profile providers to clear cached data
     ref.invalidate(userProfileProvider);
     ref.invalidate(driverProfileProvider);
     await ref.read(authRepositoryProvider).signOut();
-    print('[DEBUG] AuthController: signOut completado');
   }
 }

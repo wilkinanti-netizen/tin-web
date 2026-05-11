@@ -5,6 +5,7 @@ import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/profile/domain/models/payout_request.dart';
 import 'package:tincars/features/profile/domain/models/payout_method.dart';
 import 'package:tincars/features/profile/domain/models/emergency_contact.dart';
+import 'package:tincars/features/profile/domain/models/driver_verification.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProfileRepository {
@@ -76,39 +77,41 @@ class ProfileRepository {
     final prefix = name.length >= 3
         ? name.substring(0, 3).toUpperCase()
         : name.toUpperCase().padRight(3, 'X');
-    final random = DateTime.now().millisecondsSinceEpoch.toString().substring(10);
+    final random = DateTime.now().millisecondsSinceEpoch.toString().substring(
+      10,
+    );
     return '$prefix$random';
   }
 
   // Actualizar ID del dispositivo para vinculación de sesión
   Future<void> updateDeviceId(String userId, String? deviceId) async {
-    AppLogger.log('[PROFILE] Vinculando dispositivo $deviceId al usuario $userId');
-    await _firestore.collection('profiles').doc(userId).update({'device_id': deviceId});
+    AppLogger.log(
+      '[PROFILE] Vinculando dispositivo $deviceId al usuario $userId',
+    );
+    await _firestore.collection('profiles').doc(userId).update({
+      'device_id': deviceId,
+    });
   }
 
   // Guardar preferencias de servicio del conductor
   Future<void> saveDriverData(DriverProfile driver) async {
-    AppLogger.log('[PROFILE] Guardando preferencias conductor: ${driver.profileId}');
+    AppLogger.log(
+      '[PROFILE] Guardando preferencias conductor: ${driver.profileId}',
+    );
     await _firestore.collection('driver_data').doc(driver.profileId).update({
       'active_services': driver.activeServices.map((e) => e.name).toList(),
     });
     AppLogger.log('[PROFILE] Preferencias guardadas OK');
   }
 
-  // Sumar a ganancias
-  Future<void> addToEarnings(String userId, double amount) async {
+  // Sumar a estadísticas de ganancias totales
+  Future<void> addToTotalEarnings(String userId, double amount) async {
     try {
-      final batch = _firestore.batch();
-      
-      final driverRef = _firestore.collection('driver_data').doc(userId);
-      batch.update(driverRef, {'total_earnings': FieldValue.increment(amount)});
-
-      final profileRef = _firestore.collection('profiles').doc(userId);
-      batch.update(profileRef, {'wallet_balance': FieldValue.increment(amount)});
-
-      await batch.commit();
+      await _firestore.collection('driver_data').doc(userId).update({
+        'total_earnings': FieldValue.increment(amount),
+      });
     } catch (e) {
-      AppLogger.log('Error al actualizar ganancias: $e');
+      AppLogger.log('Error al actualizar estadísticas de ganancias: $e');
     }
   }
 
@@ -156,7 +159,11 @@ class ProfileRepository {
           .orderBy('created_at', descending: true)
           .get();
 
-      return query.docs.map((doc) => PayoutMethod.fromJson(doc.data())).toList();
+      return query.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Asegurar que el ID del doc se pase al modelo
+        return PayoutMethod.fromJson(data);
+      }).toList();
     } catch (e) {
       AppLogger.log('Error al obtener métodos de cobro: $e');
       return [];
@@ -164,17 +171,20 @@ class ProfileRepository {
   }
 
   Future<void> savePayoutMethod(String userId, PayoutMethod method) async {
+    final docRef = _firestore.collection('payout_methods').doc();
     final data = method.toJson();
+    data['id'] = docRef.id;
     data['user_id'] = userId;
     data['created_at'] = FieldValue.serverTimestamp();
-    await _firestore.collection('payout_methods').add(data);
+    await docRef.set(data);
   }
 
   // --- Payout Requests (Withdrawals) ---
   Future<void> requestPayout(PayoutRequest request) async {
     final data = request.toJson();
     data['created_at'] = FieldValue.serverTimestamp();
-    await _firestore.collection('payout_requests').add(data);
+    // Usar el ID generado en el controlador para que coincida con el modelo
+    await _firestore.collection('payout_requests').doc(request.id).set(data);
   }
 
   Future<List<PayoutRequest>> getPayoutRequests(String userId) async {
@@ -185,7 +195,11 @@ class ProfileRepository {
           .orderBy('created_at', descending: true)
           .get();
 
-      return query.docs.map((doc) => PayoutRequest.fromJson(doc.data())).toList();
+      return query.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return PayoutRequest.fromJson(data);
+      }).toList();
     } catch (e) {
       AppLogger.log('Error al obtener solicitudes de retiro: $e');
       return [];
@@ -197,46 +211,75 @@ class ProfileRepository {
   }
 
   // --- Admin Methods ---
-  Future<List<AppUser>> getPendingDrivers() async {
-    try {
-      final query = await _firestore
-          .collection('profiles')
-          .where('driver_status', isEqualTo: 'pending')
-          .where('is_driver', isEqualTo: true)
-          .get();
+  Stream<List<AppUser>> streamPendingDrivers() {
+    return _firestore
+        .collection('profiles')
+        .where('driver_status', isEqualTo: 'pending')
+        .where('is_driver', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => AppUser.fromJson(doc.data())).toList());
+  }
 
-      return query.docs.map((doc) => AppUser.fromJson(doc.data())).toList();
+  Future<DriverVerification?> getDriverVerification(String userId) async {
+    try {
+      final doc = await _firestore.collection('driver_verifications').doc(userId).get();
+      if (!doc.exists) return null;
+      return DriverVerification.fromJson(doc.data()!);
     } catch (e) {
-      AppLogger.log('Error al obtener conductores pendientes: $e');
-      return [];
+      AppLogger.log('Error al obtener verificación: $e');
+      return null;
     }
   }
 
-  Future<void> updateDriverStatus(String userId, DriverStatus status) async {
-    await _firestore.collection('profiles').doc(userId).update({'driver_status': status.name});
+  Future<List<AppUser>> getPendingDrivers() async {
+    final query = await _firestore
+        .collection('profiles')
+        .where('driver_status', isEqualTo: 'pending')
+        .where('is_driver', isEqualTo: true)
+        .get();
+    return query.docs.map((doc) => AppUser.fromJson(doc.data())).toList();
   }
 
-  Future<List<PayoutRequest>> getAllPayoutRequests({PayoutStatus? status}) async {
+  Future<void> updateDriverStatus(String userId, DriverStatus status) async {
+    await _firestore.collection('profiles').doc(userId).update({
+      'driver_status': status.name,
+    });
+  }
+
+  Future<List<PayoutRequest>> getAllPayoutRequests({
+    PayoutStatus? status,
+  }) async {
     try {
       Query query = _firestore.collection('payout_requests');
       if (status != null) {
         query = query.where('status', isEqualTo: status.name);
       }
       final result = await query.orderBy('created_at', descending: true).get();
-      return result.docs.map((doc) => PayoutRequest.fromJson(doc.data() as Map<String, dynamic>)).toList();
+      return result.docs
+          .map(
+            (doc) => PayoutRequest.fromJson(doc.data() as Map<String, dynamic>),
+          )
+          .toList();
     } catch (e) {
       AppLogger.log('Error al obtener solicitudes de retiro (admin): $e');
       return [];
     }
   }
 
-  Future<void> updatePayoutStatus(String requestId, PayoutStatus status, {String? adminComment}) async {
+  Future<void> updatePayoutStatus(
+    String requestId,
+    PayoutStatus status, {
+    String? adminComment,
+  }) async {
     final updates = {
       'status': status.name,
       if (adminComment != null) 'admin_comment': adminComment,
       'updated_at': FieldValue.serverTimestamp(),
     };
-    await _firestore.collection('payout_requests').doc(requestId).update(updates);
+    await _firestore
+        .collection('payout_requests')
+        .doc(requestId)
+        .update(updates);
   }
 
   // --- Emergency Contacts ---
@@ -248,7 +291,9 @@ class ProfileRepository {
           .orderBy('created_at', descending: true)
           .get();
 
-      return query.docs.map((doc) => EmergencyContact.fromJson(doc.data())).toList();
+      return query.docs
+          .map((doc) => EmergencyContact.fromJson(doc.data()))
+          .toList();
     } catch (e) {
       AppLogger.log('Error al obtener contactos de emergencia: $e');
       return [];
@@ -263,7 +308,10 @@ class ProfileRepository {
       data['created_at'] = FieldValue.serverTimestamp();
       await docRef.set(data);
     } else {
-      await _firestore.collection('emergency_contacts').doc(data['id']).update(data);
+      await _firestore
+          .collection('emergency_contacts')
+          .doc(data['id'])
+          .update(data);
     }
   }
 

@@ -23,17 +23,20 @@ class TripStop {
   });
 
   Map<String, dynamic> toJson() => {
-        'lat': location.latitude,
-        'lng': location.longitude,
-        'address': address,
-        'is_completed': isCompleted,
-      };
+    'lat': location.latitude,
+    'lng': location.longitude,
+    'address': address,
+    'is_completed': isCompleted,
+  };
 
   factory TripStop.fromJson(Map<String, dynamic> json) => TripStop(
-        location: LatLng(json['lat'], json['lng']),
-        address: json['address'],
-        isCompleted: json['is_completed'] ?? false,
-      );
+    location: LatLng(
+      (json['lat'] as num? ?? 0).toDouble(),
+      (json['lng'] as num? ?? 0).toDouble(),
+    ),
+    address: json['address'] ?? 'Ubicación desconocida',
+    isCompleted: json['is_completed'] ?? false,
+  );
 }
 
 class Trip {
@@ -62,7 +65,9 @@ class Trip {
   final String? paymentStatus; // 'pending', 'succeeded', 'failed'
   final String? cancellationReason;
   final double? tipAmount;
+  final double? waitFee;
   final double? driverHeading;
+  final List<String> rejectedBy;
 
   Trip({
     required this.id,
@@ -89,7 +94,9 @@ class Trip {
     this.paymentStatus,
     this.cancellationReason,
     this.tipAmount,
+    this.waitFee,
     this.driverHeading,
+    this.rejectedBy = const [],
   });
 
   Map<String, dynamic> toJson() {
@@ -111,6 +118,7 @@ class Trip {
       'payment_method': paymentMethod,
       'has_extra_luggage': hasExtraLuggage,
       'has_pets': hasPets,
+      'rejected_by': rejectedBy,
     };
 
     if (driverId != null) map['driver_id'] = driverId!;
@@ -130,6 +138,7 @@ class Trip {
       map['cancellation_reason'] = cancellationReason!;
     }
     if (tipAmount != null) map['tip_amount'] = tipAmount!;
+    if (waitFee != null) map['wait_fee'] = waitFee!;
 
     return map;
   }
@@ -140,9 +149,14 @@ class Trip {
         id: json['id'] ?? '',
         passengerId: json['passenger_id'] ?? '',
         driverId: json['driver_id'],
-        pickupLocation: LatLng(json['pickup_lat'] ?? 0, json['pickup_lng'] ?? 0),
-        dropoffLocation:
-            LatLng(json['dropoff_lat'] ?? 0, json['dropoff_lng'] ?? 0),
+        pickupLocation: LatLng(
+          json['pickup_lat'] ?? 0,
+          json['pickup_lng'] ?? 0,
+        ),
+        dropoffLocation: LatLng(
+          json['dropoff_lat'] ?? 0,
+          json['dropoff_lng'] ?? 0,
+        ),
         pickupAddress: json['pickup_address'] ?? '',
         dropoffAddress: json['dropoff_address'] ?? '',
         intermediateStops: (json['intermediate_stops'] as List? ?? [])
@@ -153,14 +167,16 @@ class Trip {
         status: _parseStatus(json['status'] ?? 'requested'),
         createdAt: json['created_at'] is Timestamp
             ? (json['created_at'] as Timestamp).toDate()
-            : DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+            : DateTime.parse(
+                json['created_at'] ?? DateTime.now().toIso8601String(),
+              ),
         driverLocation: json['driver_lat'] != null && json['driver_lng'] != null
             ? LatLng(json['driver_lat'], json['driver_lng'])
             : null,
         passengerLocation:
             json['passenger_lat'] != null && json['passenger_lng'] != null
-                ? LatLng(json['passenger_lat'], json['passenger_lng'])
-                : null,
+            ? LatLng(json['passenger_lat'], json['passenger_lng'])
+            : null,
         passengerEmoji: json['passenger_emoji'],
         vehicleType: json['vehicle_type'] ?? 'essentials',
         paymentMethod: json['payment_method'] ?? 'Efectivo',
@@ -171,7 +187,9 @@ class Trip {
         paymentStatus: json['payment_status'],
         cancellationReason: json['cancellation_reason'],
         tipAmount: (json['tip_amount'] as num?)?.toDouble(),
+        waitFee: (json['wait_fee'] as num?)?.toDouble(),
         driverHeading: (json['driver_heading'] as num?)?.toDouble(),
+        rejectedBy: List<String>.from(json['rejected_by'] ?? []),
       );
     } catch (e, stack) {
       AppLogger.log('ERROR en Trip.fromJson: $e\n$stack');

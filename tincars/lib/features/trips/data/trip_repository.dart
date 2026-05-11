@@ -7,9 +7,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class TripRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   TripRepository();
 
@@ -76,6 +78,12 @@ class TripRepository {
               1000;
           return distance <= radiusInKm;
         }).toList();
+      }
+
+      // Filter out trips already rejected by this driver (if driverId is known)
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId != null) {
+        trips = trips.where((t) => !t.rejectedBy.contains(currentUserId)).toList();
       }
 
       return trips;
@@ -187,25 +195,46 @@ class TripRepository {
         });
   }
 
-  // Driver accepts a trip
+  // Driver accepts a trip using a Cloud Function for atomicity
   Future<void> acceptTrip(String tripId, String driverId) async {
-    final docRef = _firestore.collection('trips').doc(tripId);
-
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      if (!snapshot.exists) throw Exception('Viaje no encontrado');
-
-      final data = snapshot.data()!;
-      if (data['status'] != 'requested') {
-        throw Exception('TripAlreadyAccepted');
-      }
-
-      transaction.update(docRef, {
-        'driver_id': driverId,
-        'status': 'accepted',
-        'accepted_at': FieldValue.serverTimestamp(),
+    try {
+      final HttpsCallable callable = _functions.httpsCallable('acceptTrip');
+      final result = await callable.call({
+        'tripId': tripId,
+        'driverId': driverId,
       });
-    });
+
+      final data = result.data as Map<String, dynamic>;
+
+      if (data['success'] == false) {
+        if (data['error'] == 'TRIP_ALREADY_ACCEPTED') {
+          throw Exception('TripAlreadyAccepted');
+        }
+        throw Exception(data['error'] ?? 'Error desconocido al aceptar viaje');
+      }
+    } catch (e) {
+      AppLogger.log('TripRepository: Error calling acceptTrip function: $e');
+      rethrow;
+    }
+  }
+
+  // Driver rejects a trip
+  Future<void> rejectTrip(String tripId, String driverId) async {
+    try {
+      final HttpsCallable callable = _functions.httpsCallable('rejectTrip');
+      final result = await callable.call({
+        'tripId': tripId,
+        'driverId': driverId,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      if (data['success'] == false) {
+        throw Exception(data['error'] ?? 'Error desconocido al rechazar viaje');
+      }
+    } catch (e) {
+      AppLogger.log('TripRepository: Error calling rejectTrip function: $e');
+      rethrow;
+    }
   }
 
   // Update trip status (arrived, in_progress, completed)
@@ -292,9 +321,10 @@ class TripRepository {
   }
 
   // Update trip price
-  Future<void> updateTripPrice(String tripId, double newPrice) async {
+  Future<void> updateTripPrice(String tripId, double newPrice, {double? waitFee}) async {
     await _firestore.collection('trips').doc(tripId).update({
       'price': newPrice,
+      if (waitFee != null) 'wait_fee': waitFee,
     });
   }
 

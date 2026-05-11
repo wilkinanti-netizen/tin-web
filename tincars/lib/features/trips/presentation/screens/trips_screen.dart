@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_trip_detail_screen.dart';
 
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
@@ -60,7 +61,7 @@ class TripsScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             itemBuilder: (context, index) {
               final trip = trips[index];
-              return _buildTripCard(trip);
+              return _buildTripCard(context, trip);
             },
           );
         },
@@ -77,27 +78,36 @@ class TripsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTripCard(Trip trip) {
+  Widget _buildTripCard(BuildContext context, Trip trip) {
     final dateFormat = DateFormat('dd MMM, HH:mm', 'es');
     final isCancelled = trip.status == TripStatus.cancelled;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DriverTripDetailScreen(trip: trip),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -143,6 +153,23 @@ class TripsScreen extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (trip.waitFee != null && trip.waitFee! > 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'ESPERA: +\$${trip.waitFee!.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ],
@@ -233,6 +260,7 @@ class TripsScreen extends ConsumerWidget {
           ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

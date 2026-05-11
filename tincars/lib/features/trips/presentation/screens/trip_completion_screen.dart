@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
-import 'package:tincars/features/trips/presentation/screens/rating_screen.dart';
+import 'package:tincars/features/passenger/presentation/screens/passenger_rating_screen.dart';
+import 'package:tincars/features/driver/presentation/screens/driver_rating_screen.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:tincars/core/widgets/premium_glass_container.dart';
@@ -152,6 +153,69 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                               ),
                             ],
                           ),
+                          if (widget.isDriver) ...[
+                            Text(
+                              'PRECIO TOTAL DEL VIAJE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.black.withValues(alpha: 0.3),
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.black.withOpacity(0.05),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  _buildBreakdownRow(
+                                    'Tarifa base',
+                                    '\$${(trip.price - (trip.waitFee ?? 0)).toStringAsFixed(0)}',
+                                  ),
+                                  if (trip.waitFee != null && trip.waitFee! > 0) ...[
+                                    const SizedBox(height: 8),
+                                    _buildBreakdownRow(
+                                      'Cargo por espera',
+                                      '+\$${trip.waitFee!.toStringAsFixed(0)}',
+                                      color: Colors.orange,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  _buildBreakdownRow(
+                                    'Comisión TinCars (25%)',
+                                    '-\$${(trip.price * 0.25).toStringAsFixed(0)}',
+                                    isNegative: true,
+                                  ),
+                                  if (trip.tipAmount != null &&
+                                      trip.tipAmount! > 0) ...[
+                                    const SizedBox(height: 8),
+                                    _buildBreakdownRow(
+                                      'Propina extra',
+                                      '+\$${trip.tipAmount!.toStringAsFixed(0)}',
+                                      color: Colors.green,
+                                    ),
+                                  ],
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: Divider(height: 1),
+                                  ),
+                                  _buildBreakdownRow(
+                                    'TU GANANCIA NETA',
+                                    '\$${((trip.price * 0.75) + (trip.tipAmount ?? 0)).toStringAsFixed(0)}',
+                                    isBold: true,
+                                    color: Colors.green,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           Text(
                             trip.paymentMethod.toUpperCase(),
                             style: TextStyle(
@@ -272,17 +336,23 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RatingScreen(
-                                trip: trip,
-                                isDriver: widget.isDriver,
-                                otherUserName:
-                                    otherUserAsync.value?.fullName ??
-                                    (widget.isDriver
-                                        ? 'Pasajero'
-                                        : 'Conductor'),
-                                otherUserAvatarUrl:
-                                    otherUserAsync.value?.avatarUrl,
-                              ),
+                              builder: (context) => widget.isDriver
+                                  ? DriverRatingScreen(
+                                      trip: trip,
+                                      passengerName:
+                                          otherUserAsync.value?.fullName ??
+                                          'Pasajero',
+                                      passengerAvatarUrl:
+                                          otherUserAsync.value?.avatarUrl,
+                                    )
+                                  : PassengerRatingScreen(
+                                      trip: trip,
+                                      driverName:
+                                          otherUserAsync.value?.fullName ??
+                                          'Conductor',
+                                      driverAvatarUrl:
+                                          otherUserAsync.value?.avatarUrl,
+                                    ),
                             ),
                           );
                         },
@@ -500,6 +570,36 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                 overflow: TextOverflow.ellipsis,
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBreakdownRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+    bool isNegative = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isBold ? 12 : 11,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.w600,
+            color: color ?? (isBold ? Colors.black : Colors.black54),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 16 : 13,
+            fontWeight: FontWeight.w900,
+            color: color ?? (isNegative ? Colors.redAccent : Colors.black),
           ),
         ),
       ],

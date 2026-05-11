@@ -9,7 +9,6 @@ import 'package:tincars/firebase_options.dart';
 import 'package:tincars/core/router/app_router.dart';
 import 'package:tincars/core/theme/app_theme.dart';
 import 'package:tincars/core/theme/theme_provider.dart';
-// import 'package:tincars/core/constants/supabase_config.dart'; // No longer needed
 import 'package:tincars/core/localization/locale_provider.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';

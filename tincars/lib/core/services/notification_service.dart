@@ -75,7 +75,8 @@ class NotificationService {
         AndroidNotificationDetails(
           'incoming_trip_channel',
           'Nuevo Viaje Disponible',
-          channelDescription: 'Alerta de viaje entrante para conductores TinCars',
+          channelDescription:
+              'Alerta de viaje entrante para conductores TinCars',
           importance: Importance.max,
           priority: Priority.max,
           ticker: 'Nuevo viaje disponible',
@@ -154,6 +155,42 @@ class NotificationService {
       body: body,
       notificationDetails: platformDetails,
       payload: payload,
+    );
+  }
+
+  Future<void> showChatMessageNotification({
+    required String senderName,
+    required String messageText,
+    String? tripId,
+  }) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'chat_messages_channel',
+          'Mensajes de Chat',
+          channelDescription:
+              'Notificaciones de nuevos mensajes del chat del viaje',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+        );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notificationsPlugin.show(
+      id: 1002, // Unique ID for chat notifications (can overwrite previous chat alert)
+      title: 'Nuevo mensaje de $senderName',
+      body: messageText,
+      notificationDetails: platformDetails,
+      payload: tripId,
     );
   }
 
