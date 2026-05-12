@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:tincars/core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,9 +57,16 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
     _animController.forward();
   }
 
+  double? _selectedTip;
+  final TextEditingController _customTipController = TextEditingController();
+  bool _isCustomTip = false;
+
+  final List<double> _tipOptions = [1.0, 2.0, 5.0];
+
   @override
   void dispose() {
     _commentController.dispose();
+    _customTipController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -82,7 +90,7 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
     }
 
     AppLogger.log(
-      '[RATING][PASAJERO] Enviando: $_selectedRating estrellas al conductor $_ratedUserId',
+      '[RATING][PASAJERO] Enviando: $_selectedRating estrellas al conductor $_ratedUserId con propina de $_selectedTip',
     );
 
     final success = await ref
@@ -95,7 +103,8 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
           comment: _commentController.text.trim().isEmpty
               ? null
               : _commentController.text.trim(),
-          raterIsDriver: false, // El pasajero califica
+          raterIsDriver: false,
+          tipAmount: _selectedTip,
         );
 
     if (success && mounted) {
@@ -122,6 +131,40 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
         ),
       );
     }
+  }
+
+  void _showCustomTipDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Propina personalizada'),
+        content: TextField(
+          controller: _customTipController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(prefixText: '\$', hintText: '0.00'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          TextButton(
+            onPressed: () {
+              final val = double.tryParse(_customTipController.text);
+              if (val != null && val > 0) {
+                setState(() {
+                  _selectedTip = val;
+                  _isCustomTip = true;
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -200,18 +243,8 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tu opinión ayuda a mejorar la comunidad TinCars',
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // ── Estrellas ──
                 Row(
@@ -220,6 +253,7 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                     final starIndex = i + 1;
                     return GestureDetector(
                       onTap: () {
+                        HapticFeedback.mediumImpact();
                         setState(() {
                           _selectedRating = starIndex;
                           _selectedChips.clear();
@@ -253,16 +287,130 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                       letterSpacing: 0.5,
                     ),
                   ),
-                ],
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 32),
+                  const Divider(),
+                  const SizedBox(height: 24),
 
-                // ── Chips rápidos ──
-                if (_selectedRating > 0) ...[
+                  // ── Propina ──
+                  if (_selectedRating >= 4) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'AÑADIR PROPINA',
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ..._tipOptions.map((tip) {
+                          final isSelected =
+                              _selectedTip == tip && !_isCustomTip;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  setState(() {
+                                    _selectedTip = isSelected ? null : tip;
+                                    _isCustomTip = false;
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.black
+                                        : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? Colors.black
+                                          : Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '\$$tip',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                _showCustomTipDialog();
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _isCustomTip
+                                      ? Colors.black
+                                      : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: _isCustomTip
+                                        ? Colors.black
+                                        : Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Text(
+                                  _isCustomTip
+                                      ? '\$${_selectedTip?.toStringAsFixed(1)}'
+                                      : 'Otro',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _isCustomTip
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+
+                  // ── Chips rápidos ──
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      _selectedRating >= 4 ? 'DESTACADOS' : 'OPCIONES DE MEJORA',
+                      _selectedRating >= 4
+                          ? '¿QUÉ TE GUSTÓ?'
+                          : 'OPCIONES DE MEJORA',
                       style: TextStyle(
                         color: Colors.black.withValues(alpha: 0.4),
                         fontSize: 11,
@@ -279,6 +427,7 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                       final selected = _selectedChips.contains(chip);
                       return GestureDetector(
                         onTap: () {
+                          HapticFeedback.lightImpact();
                           setState(() {
                             if (selected) {
                               _selectedChips.remove(chip);
@@ -294,7 +443,9 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: selected ? Colors.black : Colors.grey.shade100,
+                            color: selected
+                                ? Colors.black
+                                : Colors.grey.shade50,
                             borderRadius: BorderRadius.circular(50),
                             border: Border.all(
                               color: selected
@@ -315,16 +466,16 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                     }).toList(),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // ── Comentario ──
                   TextField(
                     controller: _commentController,
-                    maxLines: 4,
+                    maxLines: 3,
                     cursorColor: Colors.black,
                     style: const TextStyle(color: Colors.black, fontSize: 15),
                     decoration: InputDecoration(
-                      hintText: 'Escribe un comentario opcional...',
+                      hintText: 'Comentarios adicionales...',
                       hintStyle: TextStyle(
                         color: Colors.black.withValues(alpha: 0.3),
                       ),
@@ -336,44 +487,42 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
-                        borderSide: const BorderSide(color: Colors.blueAccent),
+                        borderSide: const BorderSide(color: Colors.black12),
                       ),
                     ),
                   ),
                 ],
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 40),
 
                 // ── Botón enviar ──
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: 60,
                   child: ElevatedButton(
                     onPressed: ratingState.isSubmitting ? null : _submitRating,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      elevation: 4,
-                      shadowColor: Colors.black26,
+                      elevation: 0,
                     ),
                     child: ratingState.isSubmitting
                         ? const SizedBox(
-                            width: 22,
-                            height: 22,
+                            width: 24,
+                            height: 24,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.black,
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
                           )
                         : const Text(
-                            'ENVIAR CALIFICACIÓN',
+                            'ENVIAR',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
-                              fontSize: 14,
+                              fontSize: 15,
                               letterSpacing: 1.5,
                             ),
                           ),
@@ -391,11 +540,12 @@ class _PassengerRatingScreenState extends ConsumerState<PassengerRatingScreen>
                           Navigator.of(context).popUntil((r) => r.isFirst);
                         },
                   child: Text(
-                    'Omitir',
+                    'OMITIR',
                     style: TextStyle(
                       color: Colors.black.withValues(alpha: 0.3),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 1.0,
                     ),
                   ),
                 ),

@@ -931,6 +931,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This emoji will represent you on the map.'**
   String get mapAvatarDescription;
+
+  /// No description provided for @distanceText.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km'**
+  String distanceText(String distance);
+
+  /// No description provided for @requestTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Trip'**
+  String get requestTrip;
 }
 
 class _AppLocalizationsDelegate

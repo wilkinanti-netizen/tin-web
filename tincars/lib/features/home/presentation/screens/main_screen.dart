@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,6 +19,7 @@ import 'package:tincars/features/auth/presentation/screens/pending_verification_
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 
 import 'package:tincars/core/widgets/mode_switch_overlay.dart';
+import 'package:tincars/features/home/presentation/providers/main_nav_provider.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -27,7 +29,6 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  int _currentIndex = 0;
   StreamSubscription? _profileSubscription;
   String? _currentDeviceId;
 
@@ -54,14 +55,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         .doc(user.uid)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.exists) {
-        final data = snapshot.data();
-        final remoteDeviceId = data?['device_id'] as String?;
-        if (remoteDeviceId != null && remoteDeviceId != _currentDeviceId) {
-          _handleExternalLogout();
-        }
-      }
-    });
+          if (snapshot.exists) {
+            final data = snapshot.data();
+            final remoteDeviceId = data?['device_id'] as String?;
+            if (remoteDeviceId != null && remoteDeviceId != _currentDeviceId) {
+              _handleExternalLogout();
+            }
+          }
+        });
   }
 
   void _handleExternalLogout() async {
@@ -108,116 +109,195 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final currentMode = ref.watch(userModeProvider);
     final isPassenger = currentMode == UserMode.passenger;
     final isTransitioning = ref.watch(isModeTransitioningProvider);
+    final currentIndex = ref.watch(mainNavIndexProvider);
 
     final userProfileAsync = ref.watch(userProfileProvider);
-    
+
     return userProfileAsync.when(
       loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.black),
-        ),
+        body: Center(child: CircularProgressIndicator(color: Colors.black)),
       ),
-      error: (err, stack) => Scaffold(
-        body: Center(child: Text('Error: $err')),
-      ),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
       data: (userProfile) {
-        final isPendingDriver = !isPassenger && userProfile?.driverStatus == DriverStatus.pending;
+        final isPendingDriver =
+            !isPassenger && userProfile?.driverStatus == DriverStatus.pending;
 
         if (isPendingDriver) {
           return const PendingVerificationScreen();
         }
 
-        final incomingTrips = ref.watch(requestedTripsProvider).asData?.value ?? [];
+        final incomingTrips =
+            ref.watch(requestedTripsProvider).asData?.value ?? [];
         final activeTrip = ref.watch(activeTripProvider).asData?.value;
-        final isDriverOfActiveTrip = activeTrip != null && activeTrip.driverId == FirebaseAuth.instance.currentUser?.uid;
-        final hideBottomBar = !isPassenger && (incomingTrips.isNotEmpty || isDriverOfActiveTrip);
+        final isDriverOfActiveTrip =
+            activeTrip != null &&
+            activeTrip.driverId == FirebaseAuth.instance.currentUser?.uid;
+        final hideBottomBar =
+            !isPassenger && (incomingTrips.isNotEmpty || isDriverOfActiveTrip);
 
-    final List<Widget> passengerScreens = [
-      const HomeScreen(),
-      const ActivityScreen(),
-      const ProfileScreen(),
-    ];
+        final List<Widget> passengerScreens = [
+          const HomeScreen(),
+          const ActivityScreen(),
+          const ProfileScreen(),
+        ];
 
-    final List<Widget> driverScreens = [
-      const DriverHomeScreen(),
-      const EarningsScreen(),
-      const TripsScreen(),
-      const ProfileScreen(),
-    ];
+        final List<Widget> driverScreens = [
+          const DriverHomeScreen(),
+          const EarningsScreen(),
+          const TripsScreen(),
+          const ProfileScreen(),
+        ];
 
-    final screens = isPassenger ? passengerScreens : driverScreens;
+        final screens = isPassenger ? passengerScreens : driverScreens;
 
-    // Reset index if it's out of bounds after mode switch
-    if (_currentIndex >= screens.length) {
-      _currentIndex = 0;
-    }
+        // Reset index if it's out of bounds after mode switch
+        if (currentIndex >= screens.length) {
+          Future.microtask(
+            () => ref.read(mainNavIndexProvider.notifier).setIndex(0),
+          );
+        }
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(index: _currentIndex, children: screens),
+        return Scaffold(
+          body: Stack(
+            children: [
+              IndexedStack(index: currentIndex, children: screens),
 
-          // Mode indicator removed as per user request
-          if (isTransitioning)
-            ModeSwitchOverlay(
-              toDriver: !isPassenger,
-              onComplete: () {
-                ref.read(isModeTransitioningProvider.notifier).stop();
-              },
-            ),
-        ],
-      ),
-      bottomNavigationBar: hideBottomBar
-          ? null
-          : BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              selectedItemColor: isPassenger
-                  ? Colors.black
-                  : Colors.blue.shade900,
-              unselectedItemColor: Colors.grey,
-              showUnselectedLabels: true,
-              type: BottomNavigationBarType.fixed,
-              items: isPassenger
-                  ? const [
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.directions_car),
-                        label: 'Viajar',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.receipt_long),
-                        label: 'Actividad',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.person),
-                        label: 'Perfil',
-                      ),
-                    ]
-                  : const [
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.home),
-                        label: 'Inicio',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.account_balance_wallet),
-                        label: 'Ganancias',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.history),
-                        label: 'Historial',
-                      ),
-                      BottomNavigationBarItem(
-                        icon: Icon(Icons.person),
-                        label: 'Perfil',
+              // Mode indicator removed as per user request
+              if (isTransitioning)
+                ModeSwitchOverlay(
+                  toDriver: !isPassenger,
+                  onComplete: () {
+                    ref.read(isModeTransitioningProvider.notifier).stop();
+                  },
+                ),
+            ],
+          ),
+          bottomNavigationBar: hideBottomBar
+              ? null
+              : Container(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 10,
+                    top: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 20,
+                        offset: const Offset(0, -5),
                       ),
                     ],
-            ),
-    );
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: isPassenger
+                        ? [
+                            _buildNavItem(
+                              0,
+                              Icons.directions_car_filled_rounded,
+                              'Viajar',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                            _buildNavItem(
+                              1,
+                              Icons.receipt_long_rounded,
+                              'Actividad',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                            _buildNavItem(
+                              2,
+                              Icons.person_rounded,
+                              'Perfil',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                          ]
+                        : [
+                            _buildNavItem(
+                              0,
+                              Icons.home_rounded,
+                              'Inicio',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                            _buildNavItem(
+                              1,
+                              Icons.account_balance_wallet_rounded,
+                              'Ganancias',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                            _buildNavItem(
+                              2,
+                              Icons.history_rounded,
+                              'Historial',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                            _buildNavItem(
+                              3,
+                              Icons.person_rounded,
+                              'Perfil',
+                              isPassenger,
+                              currentIndex,
+                            ),
+                          ],
+                  ),
+                ),
+        );
       },
+    );
+  }
+
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    String label,
+    bool isPassenger,
+    int currentIndex,
+  ) {
+    final isSelected = currentIndex == index;
+    final activeColor = isPassenger ? Colors.black : Colors.blue.shade900;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        ref.read(mainNavIndexProvider.notifier).setIndex(index);
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? activeColor.withValues(alpha: 0.05)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              icon,
+              color: isSelected ? activeColor : Colors.grey.shade400,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? activeColor : Colors.grey.shade400,
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

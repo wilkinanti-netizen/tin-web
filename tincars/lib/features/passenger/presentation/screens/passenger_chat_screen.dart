@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -44,11 +45,13 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
+    HapticFeedback.lightImpact();
     _send(_messageController.text.trim());
     _messageController.clear();
   }
 
   void _send(String text) {
+    HapticFeedback.lightImpact();
     ref.read(chatControllerProvider.notifier).sendMessage(widget.tripId, text);
   }
 
@@ -60,6 +63,7 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
       maxWidth: 1000,
     );
     if (image != null) {
+      HapticFeedback.mediumImpact();
       final bytes = await image.readAsBytes();
       ref
           .read(chatControllerProvider.notifier)
@@ -68,33 +72,60 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
   }
 
   void _showImagePicker() {
+    HapticFeedback.selectionClick();
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded),
-              title: const Text('Cámara'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndSendImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded),
-              title: const Text('Galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndSendImage(ImageSource.gallery);
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.black,
+                ),
+                title: const Text(
+                  'Cámara',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndSendImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.black,
+                ),
+                title: const Text(
+                  'Galería',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndSendImage(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -108,24 +139,29 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.driverName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
             ),
             const Text(
-              'Tu conductor',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              'En línea',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        centerTitle: false,
       ),
       body: Column(
         children: [
@@ -154,11 +190,19 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 64, color: Colors.grey[300]),
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 64,
+                          color: Colors.grey[200],
+                        ),
                         const SizedBox(height: 16),
-                        Text('No hay mensajes aún',
-                            style: TextStyle(color: Colors.grey[400])),
+                        Text(
+                          'Saluda a tu conductor',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -166,15 +210,15 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
 
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
-                    _scrollController
-                        .jumpTo(_scrollController.position.maxScrollExtent);
+                    _scrollController.jumpTo(
+                      _scrollController.position.maxScrollExtent,
+                    );
                   }
                 });
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.only(
-                      bottom: 20, left: 16, right: 16, top: 16),
+                  padding: const EdgeInsets.all(20),
                   itemCount: allMessages.length,
                   itemBuilder: (context, index) {
                     final message = allMessages[index];
@@ -182,28 +226,29 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
                     final isTemp = message.id.startsWith('temp-');
 
                     return Align(
-                      alignment:
-                          isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Opacity(
                         opacity: isTemp ? 0.6 : 1.0,
                         child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
                           constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75),
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
                           decoration: BoxDecoration(
                             color: isMe ? Colors.black : Colors.white,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(20),
                               topRight: const Radius.circular(20),
-                              bottomLeft: Radius.circular(isMe ? 20 : 0),
-                              bottomRight: Radius.circular(isMe ? 0 : 20),
+                              bottomLeft: Radius.circular(isMe ? 20 : 4),
+                              bottomRight: Radius.circular(isMe ? 4 : 20),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 5,
-                                offset: const Offset(0, 2),
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
@@ -211,49 +256,45 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (message.imageUrl != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(15),
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                        maxHeight: 180, maxWidth: 200),
+                                Padding(
+                                  padding: const EdgeInsets.all(4.0),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
                                     child: Image.network(
                                       message.imageUrl!,
                                       fit: BoxFit.cover,
                                       loadingBuilder:
                                           (context, child, loadingProgress) {
-                                        if (loadingProgress == null)
-                                          return child;
-                                        return Container(
-                                          height: 120,
-                                          width: 120,
-                                          color: Colors.grey[200],
-                                          child: const Center(
-                                              child:
-                                                  CircularProgressIndicator(
-                                                      strokeWidth: 2)),
-                                        );
-                                      },
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Icon(Icons.error),
+                                            if (loadingProgress == null)
+                                              return child;
+                                            return Container(
+                                              height: 180,
+                                              width: 200,
+                                              color: Colors.grey[100],
+                                              child: const Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.black,
+                                                    ),
+                                              ),
+                                            );
+                                          },
                                     ),
                                   ),
                                 ),
-                              if (message.imageUrl != null &&
-                                  message.text.isNotEmpty &&
-                                  message.text != '📷 Foto')
-                                const SizedBox(height: 8),
                               if (message.text.isNotEmpty &&
                                   (message.imageUrl == null ||
                                       message.text != '📷 Foto'))
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
                                   child: Text(
                                     message.text,
                                     style: TextStyle(
-                                      color:
-                                          isMe ? Colors.white : Colors.black,
+                                      color: isMe ? Colors.white : Colors.black,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -267,14 +308,18 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
                   },
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: Colors.black),
+              ),
               error: (e, _) => Center(child: Text('Error: $e')),
             ),
           ),
 
           // Input Area
           Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -285,77 +330,98 @@ class _PassengerChatScreenState extends ConsumerState<PassengerChatScreen> {
                 ),
               ],
             ),
-            child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Mensajes rápidos del pasajero
-                  SizedBox(
-                    height: 50,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      itemCount: _quickMessages.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ActionChip(
-                            label: Text(_quickMessages[index],
-                                style: const TextStyle(fontSize: 12)),
-                            backgroundColor: Colors.grey[100],
-                            onPressed: () => _send(_quickMessages[index]),
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20)),
-                          ),
-                        );
-                      },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Quick Messages
+                SizedBox(
+                  height: 54,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: _showImagePicker,
-                          icon: const Icon(Icons.add_a_photo_outlined),
-                          color: Colors.black54,
+                    itemCount: _quickMessages.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => _send(_quickMessages[index]),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.black.withValues(alpha: 0.05),
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _quickMessages[index],
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: _showImagePicker,
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 28,
+                        ),
+                        color: Colors.black87,
+                      ),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(25),
+                          ),
                           child: TextField(
                             controller: _messageController,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               hintText: 'Escribe un mensaje...',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(25),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[100],
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 10),
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(fontSize: 14),
                             ),
                             onSubmitted: (_) => _sendMessage(),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _sendMessage,
+                        child: Container(
+                          width: 44,
+                          height: 44,
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: IconButton(
-                            onPressed: _sendMessage,
-                            icon: const Icon(Icons.send, color: Colors.white),
+                          child: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

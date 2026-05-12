@@ -137,5 +137,14 @@
   "errorGenericAuth": "Ocurrió un error al autenticar. Por favor intenta de nuevo.",
   "orContinueWith": "O continúa con",
   "mapAvatar": "Avatar de Mapa",
-  "mapAvatarDescription": "Este emoji te representará en el mapa."
+  "mapAvatarDescription": "Este emoji te representará en el mapa.",
+  "distanceText": "{distance} km",
+  "@distanceText": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "requestTrip": "Pedir Viaje"
 }

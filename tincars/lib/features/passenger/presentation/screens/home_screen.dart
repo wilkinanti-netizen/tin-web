@@ -24,6 +24,7 @@ import 'package:tincars/features/profile/presentation/controllers/profile_contro
 import 'package:tincars/core/utils/map_styles.dart';
 import 'package:flutter/services.dart';
 import 'package:tincars/features/home/presentation/providers/nearby_drivers_provider.dart';
+import 'package:tincars/features/home/presentation/providers/main_nav_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -70,17 +71,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             accuracy: LocationAccuracy.high,
             distanceFilter: 10,
           ),
-        ).listen((Position position) {
-          if (mounted) {
-            setState(() => _currentPosition = position);
-            if (_isFollowingUser) {
-              _centerCamera(position);
+        ).listen(
+          (Position position) {
+            if (mounted) {
+              setState(() => _currentPosition = position);
+              if (_isFollowingUser) {
+                _centerCamera(position);
+              }
+              _updateCurrentAddress(position);
             }
-            _updateCurrentAddress(position);
-          }
-        }, onError: (error) {
-          debugPrint('HomeScreen location error: $error');
-        });
+          },
+          onError: (error) {
+            debugPrint('HomeScreen location error: $error');
+          },
+        );
   }
 
   Future<void> _updateCurrentAddress(Position pos) async {
@@ -687,74 +691,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               if (userProfile?.fullName != null)
                                 Text(
-                                  '${_getTimeGreeting()}, ${userProfile!.fullName?.split(' ').first ?? ''}',
+                                  '${_getTimeGreeting().toUpperCase()}, ${userProfile!.fullName?.split(' ').first ?? ''}',
                                   style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black.withValues(alpha: 0.4),
-                                    letterSpacing: 0.2,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    letterSpacing: 1.5,
                                   ),
                                 ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 4),
                               const Text(
-                                '¿A dónde vamos?',
+                                '¿Cuál es tu destino?',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w900,
                                   color: Color(0xFF0A0A0A),
-                                  letterSpacing: -1,
-                                  height: 1.1,
+                                  letterSpacing: -1.2,
+                                  height: 1.0,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         // Profile avatar
-                        if (userProfile?.avatarUrl != null &&
-                            userProfile!.avatarUrl!.isNotEmpty)
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                width: 2,
-                              ),
-                              image: DecorationImage(
-                                image: NetworkImage(userProfile!.avatarUrl!),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF2962FF), Color(0xFF448AFF)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                userProfile?.fullName?.isNotEmpty == true
-                                    ? userProfile!.fullName![0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            ref
+                                .read(mainNavIndexProvider.notifier)
+                                .setIndex(2); // Go to Profile
+                          },
+                          child: Hero(
+                            tag: 'profile_avatar',
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  width: 1,
                                 ),
+                                image:
+                                    (userProfile?.avatarUrl != null &&
+                                        userProfile!.avatarUrl!.isNotEmpty)
+                                    ? DecorationImage(
+                                        image: NetworkImage(
+                                          userProfile.avatarUrl!,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                               ),
+                              child:
+                                  (userProfile?.avatarUrl == null ||
+                                      userProfile!.avatarUrl!.isEmpty)
+                                  ? Center(
+                                      child: Text(
+                                        userProfile?.fullName?.isNotEmpty ==
+                                                true
+                                            ? userProfile!.fullName![0]
+                                                  .toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                             ),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 28),
                     // Premium Search Bar
                     GestureDetector(
                       onTap: () async {
@@ -776,53 +796,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 15,
+                          horizontal: 20,
+                          vertical: 18,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7F7F8),
-                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 25,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                           border: Border.all(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: Colors.black.withValues(alpha: 0.03),
                           ),
                         ),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0A0A0A),
-                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
                                 Icons.search_rounded,
                                 color: Colors.white,
-                                size: 18,
+                                size: 20,
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: Text(
-                                'Introduce tu destino',
+                                'Ingresar destino...',
                                 style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.2,
+                                  fontSize: 16,
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
                                 ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.black.withValues(alpha: 0.3),
-                                size: 16,
-                              ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Colors.black.withValues(alpha: 0.1),
+                              size: 14,
                             ),
                           ],
                         ),

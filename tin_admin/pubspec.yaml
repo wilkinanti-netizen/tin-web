@@ -75,6 +75,8 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/logo/tlogo.jpeg
+    - assets/logo/vehiculos/
+
 
 flutter_launcher_icons:
   android: "launcher_icon"

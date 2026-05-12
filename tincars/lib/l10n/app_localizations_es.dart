@@ -435,4 +435,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mapAvatarDescription => 'Este emoji te representará en el mapa.';
+
+  @override
+  String distanceText(String distance) {
+    return '$distance km';
+  }
+
+  @override
+  String get requestTrip => 'Pedir Viaje';
 }

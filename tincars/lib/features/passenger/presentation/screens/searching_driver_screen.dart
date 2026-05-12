@@ -13,6 +13,7 @@ import 'package:tincars/core/utils/app_logger.dart';
 import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
+import 'package:lottie/lottie.dart' hide Marker;
 
 class SearchingDriverScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -557,12 +558,12 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                       children: [
                         Row(
                           children: [
-                            const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                color: Colors.black,
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: Lottie.network(
+                                'https://assets10.lottiefiles.com/packages/lf20_m6cu8sh7.json',
+                                fit: BoxFit.contain,
                               ),
                             ),
                             const SizedBox(width: 18),

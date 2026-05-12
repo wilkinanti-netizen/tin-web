@@ -17,6 +17,7 @@ class RatingRepository {
     required List<String> tags,
     String? comment,
     required bool raterIsDriver,
+    double? tipAmount,
   }) async {
     final ratingRef = _firestore.collection('ratings').doc();
     
@@ -30,8 +31,16 @@ class RatingRepository {
       'tags': tags,
       'comment': comment,
       'rater_is_driver': raterIsDriver,
+      'tip_amount': tipAmount ?? 0.0,
       'created_at': FieldValue.serverTimestamp(),
     });
+
+    // 2. Si hay propina y el calificador es el pasajero, actualizar el viaje
+    if (!raterIsDriver && tipAmount != null && tipAmount > 0) {
+      await _firestore.collection('trips').doc(tripId).update({
+        'tip_amount': tipAmount,
+      });
+    }
 
     // 2. Recalcular el promedio del usuario calificado
     await _updateAverageRating(ratedId);

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tin_admin/features/profile/domain/models/profiles.dart';
 import 'package:tin_admin/features/trips/domain/models/trip_model.dart';
+import 'package:tin_admin/features/admin/domain/models/admin_settings.dart';
+
 
 class AdminRepository {
   final FirebaseFirestore _firestore;
@@ -94,7 +96,50 @@ class AdminRepository {
             final data = doc.data();
             data['id'] = doc.id; // Inject document ID
             return Trip.fromJson(data);
-          }).toList(),
+          }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
+  }
+
+
+  // Stream all completed and cancelled trips globally
+  Stream<List<Trip>> streamTripHistory() {
+    return _firestore
+        .collection('trips')
+        .where('status', whereIn: ['completed', 'cancelled'])
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id; // Inject document ID
+            return Trip.fromJson(data);
+          }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
+  }
+
+
+  // Fetch admin settings
+  Future<AdminSettings> fetchAdminSettings() async {
+    final doc = await _firestore.collection('admin_settings').doc('pricing').get();
+    if (!doc.exists) {
+      throw Exception('Admin settings document not found');
+    }
+    return AdminSettings.fromJson(doc.data()!);
+  }
+
+  // Stream admin settings
+  Stream<AdminSettings> streamAdminSettings() {
+    return _firestore
+        .collection('admin_settings')
+        .doc('pricing')
+        .snapshots()
+        .map((doc) => AdminSettings.fromJson(doc.data() ?? {}));
+  }
+
+  // Update admin settings
+  Future<void> updateAdminSettings(AdminSettings settings) async {
+    await _firestore.collection('admin_settings').doc('pricing').set(
+          settings.toJson(),
+          SetOptions(merge: true),
         );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -238,7 +239,11 @@ class _TripPlanningScreenState extends ConsumerState<TripPlanningScreen> {
     }
   }
 
-  void _onSearchChanged(String val, int index) async {
+  Timer? _debounceTimer;
+
+  void _onSearchChanged(String val, int index) {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+
     if (val.isEmpty) {
       setState(() {
         _suggestions = [];
@@ -251,20 +256,22 @@ class _TripPlanningScreenState extends ConsumerState<TripPlanningScreen> {
       _searchingIndex = index;
     });
 
-    try {
-      final suggestions = await _mapsService.getAutocompleteSuggestions(
-        val,
-        _sessionToken,
-      );
-      if (mounted) {
-        setState(() {
-          _suggestions = suggestions;
-          _showSuggestions = true;
-        });
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final suggestions = await _mapsService.getAutocompleteSuggestions(
+          val,
+          _sessionToken,
+        );
+        if (mounted) {
+          setState(() {
+            _suggestions = suggestions;
+            _showSuggestions = true;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching suggestions: $e');
       }
-    } catch (e) {
-      debugPrint('Error fetching suggestions: $e');
-    }
+    });
   }
 
   void _onSelectOnMapTapped() async {

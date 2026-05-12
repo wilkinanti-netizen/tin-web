@@ -6,16 +6,13 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
-
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/features/passenger/presentation/screens/searching_driver_screen.dart';
-import 'package:tincars/features/passenger/presentation/screens/service_details_screen.dart';
-import 'package:tincars/core/widgets/premium_glass_container.dart';
+import "package:tincars/core/widgets/premium_glass_container.dart";
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/core/utils/map_styles.dart';
 import 'package:tincars/core/widgets/premium_shimmer.dart';
@@ -135,7 +132,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
       foregroundColor: Colors.white,
       label: 'Recogida',
     );
-    
+
     // B, C, ...: Intermediate Stops
     for (int i = 0; i < widget.intermediateStops.length; i++) {
       final char = String.fromCharCode(66 + i); // 66 is 'B'
@@ -146,7 +143,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
         label: 'Parada ${i + 1}',
       );
     }
-    
+
     // Last: Dropoff
     final lastChar = String.fromCharCode(66 + widget.intermediateStops.length);
     _dropoffIcon = await MarkerUtils.createABMarker(
@@ -155,7 +152,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
       foregroundColor: Colors.white,
       label: 'Destino',
     );
-    
+
     if (mounted) setState(() {});
   }
 
@@ -177,63 +174,6 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
     }
   }
 
-  Future<BitmapDescriptor> _getMarkerIcon(String label, Color color) async {
-    final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
-    final Canvas canvas = Canvas(pictureRecorder);
-    const double size = 70.0; // Más pequeño
-
-    // Draw shadow
-    final Paint shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.2);
-    canvas.drawCircle(const Offset(size / 2, size / 2), size / 2, shadowPaint);
-
-    // Draw colored circle
-    final Paint circlePaint = Paint()..color = color;
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2 - 5,
-      circlePaint,
-    );
-
-    // Draw white inner circle
-    final Paint innerPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(
-      const Offset(size / 2, size / 2),
-      size / 2 - 15,
-      innerPaint,
-    );
-
-    // Draw text
-    final TextPainter textPainter = TextPainter(
-      textDirection: ui.TextDirection.ltr,
-    );
-    textPainter.text = TextSpan(
-      text: label,
-      style: TextStyle(
-        fontSize: 50.0,
-        fontWeight: FontWeight.bold,
-        color: color,
-      ),
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        size / 2 - textPainter.width / 2,
-        size / 2 - textPainter.height / 2,
-      ),
-    );
-
-    final ui.Image image = await pictureRecorder.endRecording().toImage(
-      size.toInt(),
-      size.toInt(),
-    );
-    final ByteData? byteData = await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
-  }
-
   // Extra Options State
   String _paymentMethod = 'Efectivo';
   String? _comment;
@@ -250,6 +190,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
       return;
     }
 
+    HapticFeedback.mediumImpact();
     setState(() {
       _isSearching = true;
     });
@@ -270,13 +211,15 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
       intermediateStops: widget.intermediateStops,
       distance: widget.distanceInKm,
       price:
-          ref.read(pricingServiceProvider).calculatePrice(
-            widget.distanceInKm,
-            _selectedVehicleType,
-          ) +
+          ref
+              .read(pricingServiceProvider)
+              .calculatePrice(widget.distanceInKm, _selectedVehicleType) +
           (_priceAdjustments[_selectedVehicleType] ?? 0.0) +
           (widget.intermediateStops.length *
-              (ref.read(pricingServiceProvider).getPricingConfig(_selectedVehicleType)['base'] as double)),
+              (ref
+                      .read(pricingServiceProvider)
+                      .getPricingConfig(_selectedVehicleType)['base']
+                  as double)),
       status: TripStatus.requested,
       createdAt: DateTime.now(),
       vehicleType: _selectedVehicleType,
@@ -307,10 +250,9 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
           'VehicleSelectionScreen: Pago con tarjeta seleccionada, iniciando Stripe PaymentSheet',
         );
         final price =
-            ref.read(pricingServiceProvider).calculatePrice(
-              widget.distanceInKm,
-              _selectedVehicleType,
-            ) +
+            ref
+                .read(pricingServiceProvider)
+                .calculatePrice(widget.distanceInKm, _selectedVehicleType) +
             (_priceAdjustments[_selectedVehicleType] ?? 0.0);
 
         // 1. Inicializar el PaymentSheet (llama a la Edge Function)
@@ -331,8 +273,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
         AppLogger.log(
           'VehicleSelectionScreen: Pago exitoso con Stripe. ID: $paymentIntentId',
         );
-      } else {
-      }
+      } else {}
 
       final finalTrip = Trip(
         id: trip.id,
@@ -512,10 +453,9 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
           decimalDigits: 2,
         );
 
-        final selectedBasePrice = ref.read(pricingServiceProvider).calculatePrice(
-          widget.distanceInKm,
-          _selectedVehicleType,
-        );
+        final selectedBasePrice = ref
+            .read(pricingServiceProvider)
+            .calculatePrice(widget.distanceInKm, _selectedVehicleType);
         final selectedAdjustment =
             _priceAdjustments[_selectedVehicleType] ?? 0.0;
         final estimatedTotal = selectedBasePrice + selectedAdjustment;
@@ -618,6 +558,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
                           }
 
                           setState(() {
+                            HapticFeedback.lightImpact();
                             _paymentMethod = p['name'] as String;
                             if (_paymentMethod == 'Tarjeta Crédito/Débito' &&
                                 hasCard) {
@@ -887,28 +828,27 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
   @override
   Widget build(BuildContext context) {
     // Escuchar cambios en las tarjetas para establecer el método predeterminado
-    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(
-      savedCardsProvider,
-      (previous, next) {
-        if (next.hasValue &&
-            next.value!.isNotEmpty &&
-            _paymentMethod == 'Efectivo') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _paymentMethod = 'Tarjeta';
-              });
-              AppLogger.log(
-                'VehicleSelectionScreen: Tarjeta detectada, cambiando método predeterminado a Tarjeta',
-              );
-            }
-          });
-        }
-      },
-    );
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(savedCardsProvider, (
+      previous,
+      next,
+    ) {
+      if (next.hasValue &&
+          next.value!.isNotEmpty &&
+          _paymentMethod == 'Efectivo') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _paymentMethod = 'Tarjeta';
+            });
+            AppLogger.log(
+              'VehicleSelectionScreen: Tarjeta detectada, cambiando método predeterminado a Tarjeta',
+            );
+          }
+        });
+      }
+    });
 
     final l10n = AppLocalizations.of(context)!;
-    final currencyFormat = NumberFormat.currency(symbol: r'$', decimalDigits: 2);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -922,7 +862,7 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
               _updateMapBounds();
             },
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).size.height * 0.45,
+              bottom: MediaQuery.of(context).size.height * 0.62,
               top: 50,
             ),
             initialCameraPosition: CameraPosition(
@@ -958,6 +898,8 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
             polylines: _mapPolylines,
             zoomControlsEnabled: false,
             myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            compassEnabled: false,
             mapToolbarEnabled: false,
           ),
 
@@ -984,8 +926,10 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
                         ),
                       ],
                     ),
-                    child:
-                        const Icon(Icons.arrow_back_rounded, color: Colors.black),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -994,154 +938,199 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
             ),
           ),
 
-          // 3. Bottom Panel (Uber Style)
+          // 3. Bottom Selection Panel - Static Fixed Panel
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -5),
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 30,
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Drag Handle
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      "Tu viaje",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Vehicle Options
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.35,
-                    child: _isLoadingServices
-                        ? const Center(child: CircularProgressIndicator())
-                        : ListView(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            children: _availableServices.map((type) {
-                              final config = ref.read(pricingServiceProvider).getPricingConfig(type);
-                              final isSelected = _selectedVehicleType == type;
-
-                              return _buildServiceCard(
-                                config['name'],
-                                _getVehicleAssetForType(type),
-                                ref.read(pricingServiceProvider).formatPrice(ref.read(pricingServiceProvider).calculatePrice(widget.distanceInKm, type) + (widget.intermediateStops.length * (config['base'] as double))),
-                                isSelected,
-                                type,
-                              );
-                            }).toList(),
+                  const SizedBox(height: 10),
+                  // Vehicle List (shrink-wrapped, no scroll needed)
+                  if (_isLoadingServices)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: List.generate(
+                          3,
+                          (index) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: PremiumShimmer(
+                              width: double.infinity,
+                              height: 72,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
-                  ),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._availableServices.map((type) {
+                      final config = ref
+                          .read(pricingServiceProvider)
+                          .getPricingConfig(type);
+                      final isSelected = _selectedVehicleType == type;
 
-                  const Divider(height: 1),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 3,
+                        ),
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => _selectedVehicleType = type);
+                          },
+                          child: _buildServiceCard(
+                            config['name'],
+                            _getVehicleAssetForType(type),
+                            ref
+                                .read(pricingServiceProvider)
+                                .formatPrice(
+                                  ref
+                                          .read(pricingServiceProvider)
+                                          .calculatePrice(
+                                            widget.distanceInKm,
+                                            type,
+                                          ) +
+                                      (widget.intermediateStops.length *
+                                          (config['base'] as double)),
+                                ),
+                            isSelected,
+                            type,
+                          ),
+                        ),
+                      );
+                    }),
 
-                  // Bottom Action Bar
-                  Padding(
+                  // Footer: Payment + Request + Options
+                  Container(
                     padding: EdgeInsets.fromLTRB(
-                      24,
-                      16,
-                      24,
-                      MediaQuery.of(context).padding.bottom + 20,
+                      20,
+                      12,
+                      20,
+                      MediaQuery.of(context).padding.bottom + 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
-                        // Payment and Options Column
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GestureDetector(
-                                onTap: _showPaymentMethodsSheet,
-                                child: Row(
-                                  children: [
-                                    Icon(_getPaymentIcon(), size: 18, color: Colors.black87),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _paymentMethod,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              GestureDetector(
-                                onTap: _showOptionsDialog,
-                                child: Text(
-                                  _comment != null && _comment!.isNotEmpty ? "Comentario añadido" : "Añadir opciones",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                        // Left: Payment
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _showPaymentMethodsSheet();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _getPaymentIcon(),
+                              size: 24,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
-                        
-                        // Main Confirm Button
-                        SizedBox(
-                          height: 52,
-                          width: 160,
-                          child: ElevatedButton(
-                            onPressed: _isSearching ? null : _createTripRequest,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        const SizedBox(width: 12),
+
+                        // Center: Confirm Button
+                        Expanded(
+                          child: SizedBox(
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isSearching
+                                  ? null
+                                  : _createTripRequest,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
                               ),
-                              elevation: 0,
-                            ),
-                            child: _isSearching
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
+                              child: _isSearching
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : Text(
+                                      l10n.requestTrip.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.8,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    l10n.confirmRide.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Right: Options
+                        GestureDetector(
+                          onTap: _showOptionsDialog,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Stack(
+                              children: [
+                                const Icon(
+                                  Icons.tune_rounded,
+                                  size: 24,
+                                  color: Colors.black,
+                                ),
+                                if (_hasExtraLuggage ||
+                                    _hasPets ||
+                                    (_comment != null && _comment!.isNotEmpty))
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
                                   ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -1156,95 +1145,309 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
     );
   }
 
+  void _showVehicleInfoScreen(String type) {
+    HapticFeedback.mediumImpact();
+    final config = ref.read(pricingServiceProvider).getPricingConfig(type);
+    final capacity = ref.read(pricingServiceProvider).getVehicleCapacity(type);
+    final description = ref
+        .read(pricingServiceProvider)
+        .getVehicleDescription(type);
+    final basePrice = ref
+        .read(pricingServiceProvider)
+        .calculatePrice(widget.distanceInKm, type);
+    final stopCharges =
+        widget.intermediateStops.length * (config['base'] as double);
+    final suggestedPrice = basePrice + stopCharges;
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final adjustment = _priceAdjustments[type] ?? 0.0;
+            final priceHint = ref
+                .read(pricingServiceProvider)
+                .formatPrice(suggestedPrice);
+
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.black),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Text(
+                  config['name'],
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                centerTitle: true,
+              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Hero(
+                              tag: 'info_car_$type',
+                              child: Image.asset(
+                                _getVehicleAssetForType(type),
+                                width: 250,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          const Text(
+                            "Sobre este servicio",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[700],
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.people_alt_rounded,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  "Capacidad: $capacity personas",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          const Text(
+                            "Tu propuesta de precio",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Puedes ajustar el precio para que los conductores acepten más rápido tu viaje.",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextField(
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                          decoration: InputDecoration(
+                                            border: InputBorder.none,
+                                            hintText: priceHint,
+                                            prefixText: r"$ ",
+                                            prefixStyle: const TextStyle(
+                                              fontSize: 20,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          onChanged: (value) {
+                                            final val = value.replaceAll(
+                                              RegExp(r'[^0-9.]'),
+                                              '',
+                                            );
+                                            final newPrice = double.tryParse(
+                                              val,
+                                            );
+                                            if (newPrice != null) {
+                                              if (newPrice >= suggestedPrice) {
+                                                setModalState(() {
+                                                  _priceAdjustments[type] =
+                                                      newPrice - suggestedPrice;
+                                                });
+                                                setState(() {});
+                                              }
+                                            }
+                                          },
+                                          controller:
+                                              TextEditingController.fromValue(
+                                                TextEditingValue(
+                                                  text:
+                                                      (suggestedPrice +
+                                                              adjustment)
+                                                          .toStringAsFixed(0),
+                                                  selection:
+                                                      TextSelection.collapsed(
+                                                        offset:
+                                                            (suggestedPrice +
+                                                                    adjustment)
+                                                                .toStringAsFixed(
+                                                                  0,
+                                                                )
+                                                                .length,
+                                                      ),
+                                                ),
+                                              ),
+                                        ),
+                                        const Text(
+                                          "Toca para editar el precio",
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _buildAdjustButton(Icons.add_rounded, () {
+                                    setModalState(() {
+                                      _priceAdjustments[type] =
+                                          adjustment + 1.0;
+                                    });
+                                    setState(() {});
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: const Text(
+                          "CONFIRMAR PROPUESTA",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 1),
+            end: const Offset(0, 0),
+          ).animate(anim1),
+          child: child,
+        );
+      },
+    );
+  }
+
+  Widget _buildAdjustButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: Colors.black, size: 24),
+      ),
+    );
+  }
+
   String _getVehicleAssetForType(String type) {
     switch (type) {
-      case 'essentials_xl': return 'assets/vehiculos/essentialxl.png';
-      case 'executive': return 'assets/vehiculos/executive.png';
-      case 'signature_lux': return 'assets/vehiculos/signatuve.png';
-      default: return 'assets/vehiculos/essentials.png';
+      case 'essentials_xl':
+        return 'assets/vehiculos/essentialxl.png';
+      case 'executive':
+        return 'assets/vehiculos/executive.png';
+      case 'signature_lux':
+        return 'assets/vehiculos/signatuve.png';
+      default:
+        return 'assets/vehiculos/essentials.png';
     }
   }
 
   void _updateMapBounds() {
     mapController.animateCamera(
-      CameraUpdate.newLatLngBounds(widget.bounds, 50),
-    );
-  }
-
-  Widget _buildAddressRow({
-    required IconData icon,
-    required String label,
-    required String address,
-    required Color color,
-    required bool isFirst,
-  }) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Timeline Column
-          SizedBox(
-            width: 32,
-            child: Column(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(child: Icon(icon, size: 16, color: color)),
-                ),
-                if (isFirst)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Content Column
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isFirst ? 16.0 : 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    address,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+      CameraUpdate.newLatLngBounds(widget.bounds, 15),
     );
   }
 
@@ -1256,120 +1459,185 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
     String type,
   ) {
     final capacity = ref.read(pricingServiceProvider).getVehicleCapacity(type);
-    final description = ref.read(pricingServiceProvider).getVehicleDescription(type);
-    final basePrice = ref.read(pricingServiceProvider).calculatePrice(widget.distanceInKm, type);
+    final description = ref
+        .read(pricingServiceProvider)
+        .getVehicleDescription(type);
+    final basePrice = ref
+        .read(pricingServiceProvider)
+        .calculatePrice(widget.distanceInKm, type);
     final adjustment = _priceAdjustments[type] ?? 0.0;
-    final stopCharges = widget.intermediateStops.length * (ref.read(pricingServiceProvider).getPricingConfig(type)['base'] as double);
+    final stopCharges =
+        widget.intermediateStops.length *
+        (ref.read(pricingServiceProvider).getPricingConfig(type)['base']
+            as double);
     final finalPrice = basePrice + adjustment + stopCharges;
 
     return GestureDetector(
       onTap: () => setState(() => _selectedVehicleType = type),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.black.withOpacity(0.04) : Colors.white,
           border: Border.all(
             color: isSelected ? Colors.black : Colors.grey[100]!,
-            width: 2,
+            width: 1.5,
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(
+        child: Stack(
           children: [
-            Image.asset(
-              assetPath,
-              width: 70,
-              height: 50,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.directions_car_rounded,
-                size: 32,
-                color: Colors.black26,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.person_rounded, size: 12, color: Colors.grey[600]),
-                      Text(
-                        " $capacity",
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
               children: [
-                Text(
-                  ref.read(pricingServiceProvider).formatPrice(finalPrice),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
+                const SizedBox(width: 4),
+                Image.asset(
+                  assetPath,
+                  width: 60,
+                  height: 40,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.directions_car_rounded,
+                    size: 28,
+                    color: Colors.black26,
                   ),
                 ),
-                if (isSelected)
-                  Row(
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildPriceButton(Icons.add_rounded, () {
-                        final current = _priceAdjustments[type] ?? 0.0;
-                        setState(() => _priceAdjustments[type] = current + 1.0);
-                      }),
-                      // Removed decrease button as requested
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.person_rounded,
+                            size: 11,
+                            color: Colors.grey[600],
+                          ),
+                          Text(
+                            " $capacity",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Price displayed next to name
+                          Text(
+                            ref
+                                .read(pricingServiceProvider)
+                                .formatPrice(finalPrice),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          if (isSelected) ...[
+                            const SizedBox(width: 8),
+                            // Elegant premium +$1 pill chip
+                            GestureDetector(
+                              onTap: () {
+                                final current = _priceAdjustments[type] ?? 0.0;
+                                setState(
+                                  () => _priceAdjustments[type] = current + 1.0,
+                                );
+                                HapticFeedback.selectionClick();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF1a1a1a),
+                                      Color(0xFF3d3d3d),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.add_rounded,
+                                      color: Colors.white,
+                                      size: 13,
+                                    ),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      '\$1',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          // Keep right spacing so the info icon doesn't overlap
+                          const SizedBox(width: 22),
+                        ],
+                      ),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
+                ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-  Widget _buildPriceButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
+            Positioned(
+              top: -4,
+              right: -4,
+              child: GestureDetector(
+                onTap: () => _showVehicleInfoScreen(type),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        child: Icon(icon, size: 18, color: Colors.black),
       ),
     );
   }

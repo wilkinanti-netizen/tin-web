@@ -44,6 +44,7 @@ class RatingController extends Notifier<RatingState> {
     required List<String> tags,
     String? comment,
     required bool raterIsDriver,
+    double? tipAmount,
   }) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -74,6 +75,7 @@ class RatingController extends Notifier<RatingState> {
         tags: tags,
         comment: comment,
         raterIsDriver: raterIsDriver,
+        tipAmount: tipAmount,
       );
 
       state = state.copyWith(isSubmitting: false, isSubmitted: true);
