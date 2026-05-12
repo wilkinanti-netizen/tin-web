@@ -59,10 +59,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAg-tf4vh5Tzs0FCGwvYkp8BmPJ7A0DYYE',
-    appId: '1:132752752689:ios:58697365b89abf56001510',
+    appId: '1:132752752689:ios:0bde505199ef4b6a001510',
     messagingSenderId: '132752752689',
     projectId: 'tincars-b7d42',
     storageBucket: 'tincars-b7d42.firebasestorage.app',
-    iosBundleId: 'com.Tincars.Tin',
+    iosBundleId: 'com.cesarlozada.tincars.rider',
   );
 }

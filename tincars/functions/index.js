@@ -6,6 +6,7 @@ const geofire = require("geofire-common");
 
 admin.initializeApp();
 
+
 const db = admin.firestore();
 
 /**
@@ -15,14 +16,14 @@ const db = admin.firestore();
 exports.ontripcreated = onDocumentCreated("trips/{tripId}", async (event) => {
     const tripId = event.params.tripId;
     const snap = event.data;
-    
+
     if (!snap) {
         console.log("No data found for trip:", tripId);
         return null;
     }
 
     const tripData = snap.data();
-    
+
     // Only notify for requested trips
     if (tripData.status !== 'requested') {
         return null;
@@ -127,7 +128,7 @@ exports.ontripcreated = onDocumentCreated("trips/{tripId}", async (event) => {
 
         // 4. Send multicast message
         const response = await admin.messaging().sendEachForMulticast(message);
-        
+
         console.log(`Successfully notified ${response.successCount} drivers within 2km.`);
 
     } catch (error) {
@@ -148,7 +149,7 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
     const stripe = new Stripe(stripeSecretKey.value());
     const data = request.data;
     const action = data.action;
-    
+
     // Usar el UID del usuario autenticado directamente desde el contexto de Firebase
     if (!request.auth) {
         throw new Error('El usuario debe estar autenticado');
@@ -167,7 +168,7 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
                 metadata: { firebaseUID: uid }
             });
             customerId = customer.id;
-            
+
             // Guardar el nuevo ID en Firestore
             await db.collection('profiles').doc(uid).set({
                 stripe_customer_id: customerId
@@ -184,7 +185,7 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
             );
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: Math.round(amount * 100), 
+                amount: Math.round(amount * 100),
                 currency: currency,
                 customer: customerId,
                 automatic_payment_methods: {
@@ -198,13 +199,13 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
                 customer: customerId,
                 publishableKey: stripePublishableKey.value(),
             };
-            
+
         } else if (action === 'create-setup-intent') {
             const ephemeralKey = await stripe.ephemeralKeys.create(
                 { customer: customerId },
                 { apiVersion: '2023-10-16' }
             );
-            
+
             const setupIntent = await stripe.setupIntents.create({
                 customer: customerId,
                 payment_method_types: ['card'],
@@ -216,7 +217,7 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
                 customer: customerId,
                 publishableKey: stripePublishableKey.value(),
             };
-            
+
         } else {
             throw new Error(`Acción desconocida: ${action}`);
         }
@@ -233,7 +234,7 @@ exports.stripePayments = onCall({ secrets: [stripeSecretKey, stripePublishableKe
 exports.ontripstatuschanged = onDocumentUpdated("trips/{tripId}", async (event) => {
     const after = event.data.after.data();
     const before = event.data.before.data();
-    
+
     // Solo continuar si el estado ha cambiado
     if (after.status === before.status) {
         return null;
@@ -262,7 +263,7 @@ exports.ontripstatuschanged = onDocumentUpdated("trips/{tripId}", async (event) 
     try {
         const passengerProfile = await db.collection('profiles').doc(passengerId).get();
         if (!passengerProfile.exists) return null;
-        
+
         const fcmToken = passengerProfile.data().fcm_token;
         if (!fcmToken) {
             console.log(`Passenger ${passengerId} has no FCM token.`);
@@ -469,6 +470,124 @@ exports.onnewmessage = onDocumentCreated("messages/{messageId}", async (event) =
 
     } catch (error) {
         console.error("Error sending chat notification:", error);
+    }
+
+    return null;
+});
+
+/**
+ * Triggered when an admin creates a notification job document.
+ * Reads FCM tokens from profiles, sends real FCM push notifications,
+ * and updates the job doc with the result.
+ */
+exports.onnotificationjobcreated = onDocumentCreated("notification_jobs/{jobId}", async (event) => {
+    const snap = event.data;
+    if (!snap) return null;
+
+    const jobData = snap.data();
+    const { title, body, target } = jobData;
+
+    if (!title || !body) {
+        await snap.ref.update({ status: 'failed', error: 'Missing title or body' });
+        return null;
+    }
+
+    try {
+        // 1. Fetch profiles based on target
+        let query = db.collection('profiles');
+        const profilesSnap = await query.get();
+        const tokens = [];
+
+        const userEmails = [];
+        profilesSnap.forEach(doc => {
+            const data = doc.data();
+            const token = data.fcm_token;
+            const isDriver = data.is_driver === true;
+
+            if (!token) return;
+
+            if (target === 'all' || (target === 'drivers' && isDriver) || (target === 'passengers' && !isDriver)) {
+                tokens.push(token);
+                userEmails.push(data.email || doc.id);
+            }
+        });
+
+        if (tokens.length === 0) {
+            await snap.ref.update({
+                status: 'done',
+                success_count: 0,
+                failure_count: 0,
+                total_targeted: 0,
+            });
+            return null;
+        }
+
+        console.log(`Admin notification job: sending to ${tokens.length} devices (target: ${target})`);
+        userEmails.forEach((email, i) => {
+            console.log(`Index ${i}: User ${email}`);
+        });
+
+
+        // 2. Prepare and send multicast message (cloned from working ontripcreated logic)
+        const message = {
+            notification: { title, body },
+            data: {
+                type: 'ADMIN_BROADCAST',
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            android: {
+                priority: 'high',
+                notification: {
+                    sound: 'default',
+                    channelId: 'trip_status_channel',
+                },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1,
+                        'content-available': 1,
+                    },
+                },
+            },
+            tokens: tokens,
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+
+        const detailedResults = [];
+        let firstError = null;
+
+        response.responses.forEach((resp, idx) => {
+            const email = userEmails[idx];
+            if (resp.success) {
+                detailedResults.push({ email, status: 'success' });
+                console.log(`✅ SUCCESS for ${email}`);
+            } else {
+                const errMsg = resp.error ? resp.error.message : 'Unknown error';
+                detailedResults.push({ email, status: 'failed', error: errMsg });
+                console.error(`❌ FAILED for ${email}: ${errMsg}`);
+                if (!firstError) firstError = errMsg;
+            }
+        });
+
+        // 3. Update job doc with result
+        await snap.ref.update({
+            status: 'done',
+            success_count: response.successCount,
+            failure_count: response.failureCount,
+            total_targeted: tokens.length,
+            detailed_results: detailedResults, // NEW: Detailed list for the admin to see
+            error_details: firstError || null,
+            completed_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log(`Admin notification job done: ${response.successCount} success, ${response.failureCount} failed.`);
+
+    } catch (error) {
+        console.error('Error in onnotificationjobcreated:', error);
+        await snap.ref.update({ status: 'failed', error: error.message });
     }
 
     return null;

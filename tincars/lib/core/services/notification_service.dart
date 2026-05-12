@@ -197,6 +197,11 @@ class NotificationService {
   Future<String?> getToken() async {
     try {
       if (kIsWeb) return null;
+
+      // Force token refresh by deleting the old one first
+      // This is necessary to clear stale tokens from previous project configurations
+      await _fcm.deleteToken();
+
       String? token = await _fcm.getToken();
       return token;
     } catch (e) {
