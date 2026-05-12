@@ -1,0 +1,12 @@
+node_modules/
+.dart_tool/
+.packages
+build/
+.pub/
+.pub-cache/
+ios/Flutter/.last_build_id
+ios/Pods/
+android/.gradle/
+android/app/build/
+*.log
+.DS_Store
