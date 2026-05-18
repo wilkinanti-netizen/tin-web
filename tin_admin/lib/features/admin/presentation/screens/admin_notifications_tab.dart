@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tin_admin/features/profile/domain/models/profiles.dart';
 import 'package:tin_admin/features/admin/presentation/controllers/admin_controller.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class AdminNotificationsTab extends ConsumerStatefulWidget {
   const AdminNotificationsTab({super.key});
@@ -23,6 +24,7 @@ class _AdminNotificationsTabState extends ConsumerState<AdminNotificationsTab> {
   bool _showReport = false;
   int _sentSuccess = 0;
   int _sentFailed = 0;
+  List<dynamic> _failures = [];
 
   @override
   Widget build(BuildContext context) {
@@ -209,6 +211,40 @@ class _AdminNotificationsTabState extends ConsumerState<AdminNotificationsTab> {
               ),
             ],
           ),
+          if (_failures.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'DETALLES DE FALLOS:',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 150),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _failures.map((f) {
+                    final email = f['email'] ?? 'Unknown';
+                    final error = f['error'] ?? 'Unknown error';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '• $email: $error',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -407,52 +443,46 @@ class _AdminNotificationsTabState extends ConsumerState<AdminNotificationsTab> {
     });
 
     try {
-      // 1. Write a notification job to Firestore
-      //    The Cloud Function 'onnotificationjobcreated' will process it
-      final docRef = await FirebaseFirestore.instance
-          .collection('notification_jobs')
-          .add({
+      debugPrint('🔔 [PANEL] Iniciando envío de notificación...');
+      debugPrint(
+        '🔔 [PANEL] Datos: title=${_titleController.text}, body=${_bodyController.text}, target=$_target',
+      );
+
+      // 1. Call the HTTPS Callable function directly
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('sendBroadcastNotification')
+          .call({
             'title': _titleController.text.trim(),
             'body': _bodyController.text.trim(),
             'target': _target,
-            'status': 'pending',
-            'created_at': FieldValue.serverTimestamp(),
           });
 
-      // 2. Listen to the doc until the function marks it done/failed
-      await for (final snap in docRef.snapshots()) {
-        final data = snap.data();
-        if (data == null) continue;
+      debugPrint('🔔 [PANEL] Respuesta recibida: ${result.data}');
+      final data = result.data as Map<String, dynamic>;
 
-        final status = data['status'] as String?;
-        if (status == 'done' || status == 'failed') {
-          _sentSuccess = (data['success_count'] as num?)?.toInt() ?? 0;
-          _sentFailed = (data['failure_count'] as num?)?.toInt() ?? 0;
-          final errorDetails =
-              data['error_details'] as String? ?? data['error'] as String?;
+      if (data['success'] == true) {
+        _sentSuccess = (data['successCount'] as num?)?.toInt() ?? 0;
+        _sentFailed = (data['failureCount'] as num?)?.toInt() ?? 0;
+        _failures = data['failures'] as List<dynamic>? ?? [];
 
-          if (mounted) {
-            setState(() => _showReport = true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _sentFailed == 0 && status == 'done'
-                      ? '✅ $_sentSuccess notificaciones enviadas'
-                      : '❌ Fallaron $_sentFailed. Error: ${errorDetails ?? 'Desconocido'}',
-                ),
-                backgroundColor: (_sentFailed == 0 && status == 'done')
-                    ? Colors.green
-                    : Colors.red,
-                duration: const Duration(seconds: 10),
+        if (mounted) {
+          setState(() => _showReport = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ $_sentSuccess enviadas, $_sentFailed fallidas (tokens limpiados)',
               ),
-            );
-            _titleController.clear();
-            _bodyController.clear();
-          }
-          break;
+              backgroundColor: Colors.green,
+            ),
+          );
+          _titleController.clear();
+          _bodyController.clear();
         }
+      } else {
+        throw Exception(data['error'] ?? 'Error desconocido en el servidor');
       }
     } catch (e) {
+      debugPrint('❌ [PANEL ERROR] Error al llamar a la función: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

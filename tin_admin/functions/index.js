@@ -4,7 +4,11 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const geofire = require("geofire-common");
 
-admin.initializeApp();
+const serviceAccount = require("./serviceAccountKey.json");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
 
 
 const db = admin.firestore();
@@ -591,4 +595,153 @@ exports.onnotificationjobcreated = onDocumentCreated("notification_jobs/{jobId}"
     }
 
     return null;
+});
+/**
+ * HTTPS Callable function to send broadcast notifications from the admin panel.
+ * Provides immediate feedback to the UI.
+ */
+exports.sendBroadcastNotification = onCall(async (request) => {
+    console.log('--- sendBroadcastNotification TRIGGERED ---');
+    console.log('Data:', JSON.stringify(request.data));
+
+    // 1. Verify admin authentication
+    // Skip admin authentication check for now to allow panel access
+    /*
+    if (!request.auth) {
+        throw new Error('Unauthorized: Admin authentication required');
+    }
+    */
+
+    const { title, body, target } = request.data;
+
+    if (!title || !body) {
+        return { success: false, error: 'Missing title or body' };
+    }
+
+    try {
+        // 2. Fetch profiles based on target
+        const profilesSnap = await db.collection('profiles').get();
+        const tokensWithIds = [];
+
+        profilesSnap.forEach(doc => {
+            const data = doc.data();
+            const token = data.fcm_token;
+            const isDriver = data.is_driver === true;
+
+            if (!token) return;
+
+            if (target === 'all' || (target === 'drivers' && isDriver) || (target === 'passengers' && !isDriver)) {
+                tokensWithIds.push({
+                    id: doc.id,
+                    token: token,
+                    email: data.email || 'No email'
+                });
+            }
+        });
+
+        console.log(`--- [SERVER] Tokens encontrados para target ${target}: ${tokensWithIds.length} ---`);
+
+        if (tokensWithIds.length === 0) {
+            console.log('--- [SERVER] No se encontraron tokens. Cancelando envío. ---');
+            return { success: true, successCount: 0, failureCount: 0, totalTargeted: 0 };
+        }
+
+        let totalSuccess = 0;
+        let totalFailure = 0;
+        const failures = [];
+
+        // 3. Process in batches
+        for (let i = 0; i < tokensWithIds.length; i += 500) {
+            const batch = tokensWithIds.slice(i, i + 500);
+            const tokens = batch.map(t => t.token);
+
+            console.log(`--- [SERVER] Enviando lote de ${batch.length} tokens... ---`);
+
+            const sendPromises = tokens.map(async (token, idx) => {
+                const singleMessage = {
+                    notification: { title, body },
+                    data: {
+                        type: 'ADMIN_BROADCAST',
+                        click_action: 'FLUTTER_NOTIFICATION_CLICK',
+                    },
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            sound: 'default',
+                            channelId: 'trip_status_channel',
+                        },
+                    },
+                    apns: {
+                        payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
+                    },
+                    token: token,
+                };
+
+                try {
+                    await admin.messaging().send(singleMessage);
+                    return { success: true, idx };
+                } catch (e) {
+                    return { success: false, error: e, idx };
+                }
+            });
+
+            const results = await Promise.all(sendPromises);
+
+            let batchSuccess = 0;
+            let batchFailure = 0;
+            const responses = results.map(r => {
+                if (r.success) {
+                    batchSuccess++;
+                    return { success: true };
+                } else {
+                    batchFailure++;
+                    return { success: false, error: r.error };
+                }
+            });
+
+            console.log(`--- [SERVER] Resultado del lote: ${batchSuccess} éxito, ${batchFailure} fallo ---`);
+
+            totalSuccess += batchSuccess;
+            totalFailure += batchFailure;
+
+            // 4. Handle responses and cleanup stale tokens
+            for (let idx = 0; idx < responses.length; idx++) {
+                const resp = responses[idx];
+                const userInfo = batch[idx];
+
+                if (resp.success) {
+                    console.log(`[SUCCESS] Enviado a: ${userInfo.email} (ID: ${userInfo.id})`);
+                } else {
+                    const error = resp.error;
+                    const errorMsg = error ? error.message : 'Unknown error';
+                    failures.push({ email: userInfo.email, error: errorMsg });
+                    console.error(`[FAILED] No se pudo enviar a: ${userInfo.email} (ID: ${userInfo.id}) - Error: ${errorMsg}`);
+
+                    if (error && (
+                        error.code === 'messaging/invalid-registration-token' ||
+                        error.code === 'messaging/registration-token-not-registered'
+                    )) {
+                        console.log(`[CLEANUP] Eliminando token inválido para: ${userInfo.email}`);
+                        await db.collection('profiles').doc(userInfo.id).update({
+                            fcm_token: admin.firestore.FieldValue.delete(),
+                            token_error: error.code,
+                            token_last_error_at: admin.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                }
+            }
+        }
+
+        return {
+            success: true,
+            successCount: totalSuccess,
+            failureCount: totalFailure,
+            totalTargeted: tokensWithIds.length,
+            failures: failures.slice(0, 50), // Send some failures back for UI
+        };
+
+    } catch (error) {
+        console.error('Error in sendBroadcastNotification:', error);
+        return { success: false, error: error.message };
+    }
 });

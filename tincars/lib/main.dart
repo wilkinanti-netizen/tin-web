@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tincars/core/providers/shared_prefs_provider.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/features/auth/data/auth_repository.dart';
+import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

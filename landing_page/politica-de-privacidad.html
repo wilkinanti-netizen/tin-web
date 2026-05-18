@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviso de Privacidad | Tins cars premium</title>
+    <meta name="description"
+        content="Aviso de Privacidad y Protección de Datos de Tins cars premium. Cumplimiento legal y seguridad de la información.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --legal-bg: #0f0f13;
+            --legal-card: rgba(255, 255, 255, 0.03);
+            --legal-accent: #d4af37;
+            /* Gold for credibility */
+        }
+
+        body {
+            background-color: var(--legal-bg);
+        }
+
+        .privacy-container {
+            max-width: 900px;
+            margin: 140px auto 80px;
+            padding: 60px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative legal seal element */
+        .privacy-container::before {
+            content: '\f3ed';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 15rem;
+            opacity: 0.02;
+            pointer-events: none;
+        }
+
+        .privacy-container h1 {
+            font-size: 2.8rem;
+            margin-bottom: 40px;
+            color: #fff;
+            text-align: left;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .privacy-container h2 {
+            font-size: 1.4rem;
+            margin-top: 45px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .privacy-container h2::before {
+            content: '';
+            width: 20px;
+            height: 2px;
+            background: var(--primary-color);
+            margin-right: 15px;
+        }
+
+        .privacy-container p,
+        .privacy-container li {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 18px;
+        }
+
+        .privacy-container strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .privacy-container ul {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 30px;
+        }
+
+        .privacy-container ul li {
+            padding-left: 30px;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .privacy-container ul li::before {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            opacity: 0.8;
+            transform: translateX(-5px);
+        }
+
+        .back-link i {
+            margin-right: 10px;
+        }
+
+        .legal-footer-info {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .legal-stamp {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+        }
+
+        .legal-stamp i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .privacy-container {
+                padding: 30px;
+                margin-top: 100px;
+            }
+
+            .privacy-container h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav class="glass-nav">
+            <div class="logo"><a href="index.html" style="text-decoration: none; color: inherit;">Tins <span>cars
+                        premium</span></a></div>
+            <ul class="nav-links">
+                <li><a href="index.html">Inicio</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="privacy-container glass">
+            <a href="index.html" class="back-link"><i class="fas fa-chevron-left"></i> Volver al Portal</a>
+
+            <h1 data-i18n="privacy_title">Aviso de Privacidad y Protección de Datos</h1>
+
+            <p data-i18n="privacy_intro">En Tins cars premium, la seguridad y privacidad de nuestros usuarios son
+                nuestra máxima prioridad. Este Aviso de Privacidad detalla de manera transparente cómo gestionamos,
+                protegemos y procesamos la información personal recolectada a través de nuestra plataforma tecnológica,
+                garantizando el cumplimiento de los estándares internacionales de protección de datos.</p>
+
+            <h2 data-i18n="privacy_section1_title">1. Recopilación de Información Sensible</h2>
+            <p data-i18n="privacy_section1_text">Para garantizar la eficiencia y seguridad de nuestros servicios,
+                recopilamos las siguientes categorías de datos:</p>
+            <ul>
+                <li data-i18n="privacy_section1_li1"><strong>Identificación Personal:</strong> Nombre completo,
+                    dirección de correo electrónico validada y número de contacto telefónico.</li>
+                <li data-i18n="privacy_section1_li2"><strong>Datos Financieros:</strong> Información de transacciones
+                    procesada a través de pasarelas de pago seguras (PCI-DSS), sin almacenar números completos de
+                    tarjetas en nuestros servidores.</li>
+                <li data-i18n="privacy_section1_li3"><strong>Geolocalización Precisa:</strong> Datos de ubicación en
+                    tiempo real del dispositivo, necesarios para coordinar trayectos, estimar tiempos de llegada y
+                    garantizar la seguridad durante el viaje.</li>
+                <li data-i18n="privacy_section1_li4"><strong>Información Técnica:</strong> Dirección IP, identificadores
+                    únicos de dispositivo (UDID), tipo de navegador y registros de interacción con la aplicación.</li>
+            </ul>
+
+            <h2 data-i18n="privacy_section2_title">2. Finalidad del Tratamiento de Datos</h2>
+            <p data-i18n="privacy_section2_text">Los datos recopilados se utilizan estrictamente para los siguientes
+                fines operativos:</p>
+            <ul>
+                <li data-i18n="privacy_section2_li1">Gestión y optimización de la logística de transporte en tiempo
+                    real.</li>
+                <li data-i18n="privacy_section2_li2">Verificación de identidad para prevenir fraudes y garantizar un
+                    entorno seguro para conductores y pasajeros.</li>
+                <li data-i18n="privacy_section2_li3">Mejora continua del algoritmo de rutas y estimación de tarifas
+                    mediante análisis de datos agregados.</li>
+                <li data-i18n="privacy_section2_li4">Cumplimiento de normativas legales y requerimientos de autoridades
+                    competentes.</li>
+            </ul>
+
+            <h2 data-i18n="privacy_section3_title">3. Seguridad y Resguardo de la Información</h2>
+            <p data-i18n="privacy_section3_text">Implementamos protocolos de seguridad de grado bancario para proteger
+                su información:</p>
+            <ul>
+                <li data-i18n="privacy_section3_li1"><strong>Encriptación SSL/TLS:</strong> Toda transferencia de datos
+                    entre el usuario y nuestros servidores está cifrada.</li>
+                <li data-i18n="privacy_section3_li2"><strong>Acceso Restringido:</strong> Solo personal autorizado tiene
+                    acceso a los datos sensibles bajo estrictos acuerdos de confidencialidad.</li>
+                <li data-i18n="privacy_section3_li3"><strong>Monitoreo 24/7:</strong> Sistemas de detección de
+                    intrusiones y auditorías de seguridad periódicas.</li>
+            </ul>
+
+            <h2 data-i18n="privacy_section4_title">4. Transferencia de Datos a Terceros</h2>
+            <p data-i18n="privacy_section4_text">Tins cars premium no comercializa bases de datos. La información se
+                comparte exclusivamente con:</p>
+            <ul>
+                <li data-i18n="privacy_section4_li1"><strong>Socios Conductores:</strong> Únicamente los datos
+                    necesarios para localizar al pasajero y completar el servicio.</li>
+                <li data-i18n="privacy_section4_li2"><strong>Proveedores de Tecnología:</strong> Servicios de
+                    infraestructura en la nube (como Google Firebase) y procesadores de pago que cumplen con normativas
+                    de seguridad.</li>
+            </ul>
+
+            <h2 data-i18n="privacy_section5_title">5. Derechos del Titular (Derechos ARCO)</h2>
+            <p data-i18n="privacy_section5_text">Usted mantiene el control total sobre su información. Puede ejercer sus
+                derechos de Acceso, Rectificación, Cancelación y Oposición en cualquier momento enviando una solicitud
+                formal a nuestro departamento de privacidad.</p>
+
+            <h2 data-i18n="privacy_section6_title">6. Protección de Menores</h2>
+            <p data-i18n="privacy_section6_text">Nuestra plataforma no está diseñada para menores de 13 años. Si
+                detectamos la recopilación accidental de datos de un menor sin consentimiento parental, procederemos a
+                la eliminación inmediata de dicha información de nuestros registros activos.</p>
+
+            <h2 data-i18n="privacy_section7_title">7. Contacto y Soporte Legal</h2>
+            <p data-i18n="privacy_section7_text">Para cualquier consulta relacionada con sus datos, puede contactar a
+                nuestro Oficial de Privacidad en: <strong>legal@tinscars.com</strong></p>
+
+            <div class="legal-footer-info">
+                <div class="legal-stamp">
+                    <i class="fas fa-user-shield"></i>
+                    <div>
+                        <p style="margin:0; color:#fff; font-weight:600;">Data Protection Certified</p>
+                        <p style="margin:0; font-size:0.75rem;">Secure Cloud Infrastructure</p>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4);" data-i18n="privacy_last_update">Última
+                    revisión legal: 13 de Mayo de 2026</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            &copy; 2026 Tins cars premium. <span data-i18n="footer_rights">Todos los derechos reservados.</span>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
