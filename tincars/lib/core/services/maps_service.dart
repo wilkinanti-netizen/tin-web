@@ -16,12 +16,24 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_apiKey&sessiontoken=$sessionToken', // Performance: Remove country restriction for US/Global support
     );
 
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data['predictions']);
-    } else {
-      throw Exception('Failed to load suggestions');
+    print("[MapsService] getAutocompleteSuggestions URL: $url");
+    try {
+      final response = await http.get(url);
+      print("[MapsService] getAutocompleteSuggestions Status: ${response.statusCode}");
+      print("[MapsService] getAutocompleteSuggestions Body: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          return List<Map<String, dynamic>>.from(data['predictions'] ?? []);
+        } else {
+          throw Exception(data['error_message'] ?? 'Failed to load suggestions: ${data['status']}');
+        }
+      } else {
+        throw Exception('Failed to load suggestions: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("[MapsService] Exception in getAutocompleteSuggestions: $e");
+      rethrow;
     }
   }
 
@@ -30,13 +42,25 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&fields=geometry&key=$_apiKey',
     );
 
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final location = data['result']['geometry']['location'];
-      return LatLng(location['lat'], location['lng']);
-    } else {
-      throw Exception('Failed to load place details');
+    print("[MapsService] getPlaceDetails URL: $url");
+    try {
+      final response = await http.get(url);
+      print("[MapsService] getPlaceDetails Status: ${response.statusCode}");
+      print("[MapsService] getPlaceDetails Body: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final location = data['result']['geometry']['location'];
+          return LatLng(location['lat'], location['lng']);
+        } else {
+          throw Exception(data['error_message'] ?? 'Failed to load place details: ${data['status']}');
+        }
+      } else {
+        throw Exception('Failed to load place details: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("[MapsService] Exception in getPlaceDetails: $e");
+      rethrow;
     }
   }
 
@@ -56,48 +80,60 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}$waypointsStr&key=$_apiKey',
     );
 
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
+    print("[MapsService] getDirections URL: $url");
+    try {
+      final response = await http.get(url);
+      print("[MapsService] getDirections Status: ${response.statusCode}");
+      print("[MapsService] getDirections Body: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
 
-      if (data['routes'].isNotEmpty) {
-        final route = data['routes'][0];
-        final polylinePoints = _decodePolyline(
-          route['overview_polyline']['points'],
-        );
+        if (data['status'] == 'OK') {
+          if (data['routes'] != null && data['routes'].isNotEmpty) {
+            final route = data['routes'][0];
+            final polylinePoints = _decodePolyline(
+              route['overview_polyline']['points'],
+            );
 
-        double totalDistance = 0;
-        int totalDuration = 0;
+            double totalDistance = 0;
+            int totalDuration = 0;
 
-        for (var leg in route['legs']) {
-          totalDistance += leg['distance']['value'] / 1000.0;
-          totalDuration += (leg['duration']['value'] / 60.0).ceil() as int;
+            for (var leg in route['legs']) {
+              totalDistance += leg['distance']['value'] / 1000.0;
+              totalDuration += (leg['duration']['value'] / 60.0).ceil() as int;
+            }
+
+            // Build human-readable text from the first leg (or total)
+            String distanceText = '${totalDistance.toStringAsFixed(1)} km';
+            String durationText = '$totalDuration min';
+            if (route['legs'].isNotEmpty) {
+              final firstLeg = route['legs'][0];
+              distanceText = firstLeg['distance']['text'] ?? distanceText;
+              durationText = firstLeg['duration']['text'] ?? durationText;
+            }
+
+            return {
+              'polyline': polylinePoints,
+              'distance': totalDistance,
+              'duration': totalDuration,
+              'distance_text': distanceText,
+              'duration_text': durationText,
+              'bounds': route['bounds'],
+            };
+          } else {
+            throw Exception(
+              'No se encontró una ruta de conducción entre estos puntos.',
+            );
+          }
+        } else {
+          throw Exception(data['error_message'] ?? 'Error al conectar con Google Maps: ${data['status']}');
         }
-
-        // Build human-readable text from the first leg (or total)
-        String distanceText = '${totalDistance.toStringAsFixed(1)} km';
-        String durationText = '$totalDuration min';
-        if (route['legs'].isNotEmpty) {
-          final firstLeg = route['legs'][0];
-          distanceText = firstLeg['distance']['text'] ?? distanceText;
-          durationText = firstLeg['duration']['text'] ?? durationText;
-        }
-
-        return {
-          'polyline': polylinePoints,
-          'distance': totalDistance,
-          'duration': totalDuration,
-          'distance_text': distanceText,
-          'duration_text': durationText,
-          'bounds': route['bounds'],
-        };
-      } else {
-        throw Exception(
-          'No se encontró una ruta de conducción entre estos puntos.',
-        );
       }
+      throw Exception('Error al conectar con Google Maps: ${response.statusCode}');
+    } catch (e) {
+      print("[MapsService] Exception in getDirections: $e");
+      rethrow;
     }
-    throw Exception('Error al conectar con Google Maps');
   }
 
   Future<String> getAddressFromLatLng(LatLng location) async {
@@ -105,14 +141,26 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=$_apiKey',
     );
 
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['results'].isNotEmpty) {
-        return data['results'][0]['formatted_address'];
+    print("[MapsService] getAddressFromLatLng URL: $url");
+    try {
+      final response = await http.get(url);
+      print("[MapsService] getAddressFromLatLng Status: ${response.statusCode}");
+      print("[MapsService] getAddressFromLatLng Body: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          if (data['results'] != null && data['results'].isNotEmpty) {
+            return data['results'][0]['formatted_address'];
+          }
+        } else {
+          print("[MapsService] getAddressFromLatLng API error: ${data['error_message'] ?? data['status']}");
+        }
       }
+      return "Dirección desconocida";
+    } catch (e) {
+      print("[MapsService] Exception in getAddressFromLatLng: $e");
+      return "Dirección desconocida";
     }
-    return "Dirección desconocida";
   }
 
   List<LatLng> _decodePolyline(String encoded) {
