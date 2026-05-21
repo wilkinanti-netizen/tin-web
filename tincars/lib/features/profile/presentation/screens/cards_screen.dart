@@ -192,7 +192,13 @@ class _CardsScreenState extends ConsumerState<CardsScreen> {
       await Stripe.instance.presentPaymentSheet();
 
       // 3. Si tiene éxito, actualizar saldo en Firestore
-      await ref.read(profileRepositoryProvider).updateWalletBalance(userId, amount, isIncrement: true);
+      await ref.read(profileRepositoryProvider).updateWalletBalance(
+        userId,
+        amount,
+        isIncrement: true,
+        type: 'topup',
+        description: 'Recarga de saldo por tarjeta',
+      );
       
       ref.invalidate(userProfileProvider);
 
@@ -327,7 +333,13 @@ class _CardsScreenState extends ConsumerState<CardsScreen> {
       AppLogger.log('[WITHDRAWAL] Actualizando saldo de billetera (descuento)');
       await ref
           .read(profileRepositoryProvider)
-          .updateWalletBalance(user.id, amount, isIncrement: false);
+          .updateWalletBalance(
+            user.id,
+            amount,
+            isIncrement: false,
+            type: 'payout',
+            description: 'Retiro de fondos a cuenta bancaria',
+          );
 
       ref.invalidate(userProfileProvider);
       ref.invalidate(payoutRequestsProvider);

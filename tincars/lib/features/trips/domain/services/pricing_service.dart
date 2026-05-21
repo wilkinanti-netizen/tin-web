@@ -57,8 +57,25 @@ class PricingService {
         now.weekday == DateTime.sunday;
   }
 
+  String _normalizeVehicleType(String type) {
+    final clean = type.toLowerCase().trim();
+    if (clean.contains('executive') || clean.contains('exrequi')) {
+      return 'executive';
+    } else if (clean.contains('signature') || clean.contains('lux')) {
+      return 'signature_lux';
+    } else if (clean.contains('xl')) {
+      return 'essentials_xl';
+    } else if (clean.contains('essential')) {
+      return 'essentials';
+    } else if (clean.contains('ex')) {
+      return 'executive';
+    }
+    return type;
+  }
+
   double calculatePrice(double distanceInKm, String vehicleType) {
-    final vehicleConfig = _config?.vehicles[vehicleType] ?? 
+    final normalized = _normalizeVehicleType(vehicleType);
+    final vehicleConfig = _config?.vehicles[normalized] ?? 
                          _config?.vehicles['essentials'];
 
     if (vehicleConfig == null) {
@@ -106,19 +123,31 @@ class PricingService {
   }
 
   String getVehicleName(String vehicleType) {
-    return _config?.vehicles[vehicleType]?.name ?? vehicleType;
+    final normalized = _normalizeVehicleType(vehicleType);
+    final configName = _config?.vehicles[normalized]?.name;
+    if (configName != null) return configName;
+    
+    // Capitalize and format the normalized key as a premium fallback name
+    if (normalized == 'signature_lux') return 'Signature Lux';
+    if (normalized == 'essentials_xl') return 'Essentials XL';
+    if (normalized == 'executive') return 'Executive';
+    if (normalized == 'essentials') return 'Essentials';
+    return normalized.replaceAll('_', ' ');
   }
 
   String getVehicleDescription(String vehicleType) {
-    return _config?.vehicles[vehicleType]?.description ?? '';
+    final normalized = _normalizeVehicleType(vehicleType);
+    return _config?.vehicles[normalized]?.description ?? '';
   }
 
   int getVehicleCapacity(String vehicleType) {
-    return _config?.vehicles[vehicleType]?.capacity ?? 4;
+    final normalized = _normalizeVehicleType(vehicleType);
+    return _config?.vehicles[normalized]?.capacity ?? 4;
   }
 
   Map<String, dynamic> getPricingConfig(String vehicleType) {
-    return _config?.vehicles[vehicleType]?.toJson() ??
+    final normalized = _normalizeVehicleType(vehicleType);
+    return _config?.vehicles[normalized]?.toJson() ??
         _config?.vehicles['essentials']?.toJson() ??
         {};
   }

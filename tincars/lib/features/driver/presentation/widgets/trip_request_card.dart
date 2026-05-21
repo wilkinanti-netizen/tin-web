@@ -128,7 +128,7 @@ class _TripRequestCardState extends ConsumerState<TripRequestCard>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${trip.paymentMethod.toUpperCase()} · ${trip.vehicleType.toUpperCase()}',
+                            '${trip.paymentMethod.toUpperCase()} · ${ref.read(pricingServiceProvider).getVehicleName(trip.vehicleType).toUpperCase()}',
                             style: const TextStyle(
                               color: Colors.green,
                               fontSize: 14,

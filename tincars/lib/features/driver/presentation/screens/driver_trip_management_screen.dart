@@ -807,9 +807,6 @@ class _DriverTripManagementScreenState
       );
     }
 
-    final passengerLoc = trip.status == TripStatus.inProgress
-        ? trip.dropoffLocation
-        : (trip.passengerLocation ?? trip.pickupLocation);
     final dropoffLoc = trip.dropoffLocation;
 
     // Load Passenger Marker (Emoji or Avatar)
@@ -1385,28 +1382,175 @@ class _DriverTripManagementScreenState
   }
 
   Future<void> _openNavigationWithLocation(LatLng loc, String address) async {
-    final googleMapsUrl =
-        'https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}';
-    final appleMapsUrl =
-        'http://maps.apple.com/?daddr=${loc.latitude},${loc.longitude}';
-
-    try {
-      if (await canLaunchUrlString(googleMapsUrl)) {
-        await launchUrlString(
-          googleMapsUrl,
-          mode: LaunchMode.externalApplication,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'INICIAR NAVEGACIÓN GPS',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Selecciona tu aplicación favorita para conducir a $address',
+                style: TextStyle(
+                  color: Colors.black.withOpacity(0.5),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildNavigationAppRow(
+                icon: Icons.map_rounded,
+                iconColor: Colors.green.shade600,
+                name: 'Google Maps',
+                description: 'Navegación turn-by-turn con mapas de Google',
+                onTap: () async {
+                  Navigator.pop(context);
+                  final url = 'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}&travelmode=driving';
+                  await _launchMapUrl(url);
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildNavigationAppRow(
+                icon: Icons.directions_car_rounded,
+                iconColor: Colors.blue.shade600,
+                name: 'Waze',
+                description: 'Alertas de tráfico, policía y radares en tiempo real',
+                onTap: () async {
+                  Navigator.pop(context);
+                  final url = 'https://waze.com/ul?ll=${loc.latitude},${loc.longitude}&navigate=yes';
+                  await _launchMapUrl(url);
+                },
+              ),
+              if (isIOS) ...[
+                const SizedBox(height: 12),
+                _buildNavigationAppRow(
+                  icon: Icons.apple_rounded,
+                  iconColor: Colors.grey.shade900,
+                  name: 'Apple Maps',
+                  description: 'Mapas oficiales de Apple optimizados para iOS',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final url = 'http://maps.apple.com/?daddr=${loc.latitude},${loc.longitude}&dirflg=d';
+                    await _launchMapUrl(url);
+                  },
+                ),
+              ],
+            ],
+          ),
         );
-      } else if (await canLaunchUrlString(appleMapsUrl)) {
+      },
+    );
+  }
+
+  Future<void> _launchMapUrl(String url) async {
+    try {
+      if (await canLaunchUrlString(url)) {
         await launchUrlString(
-          appleMapsUrl,
+          url,
           mode: LaunchMode.externalApplication,
         );
       } else {
-        await launchUrlString(googleMapsUrl, mode: LaunchMode.platformDefault);
+        await launchUrlString(url, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
-      AppLogger.log('Error opening navigation: $e');
+      AppLogger.log('Error launching navigation app: $e');
     }
+  }
+
+  Widget _buildNavigationAppRow({
+    required IconData icon,
+    required Color iconColor,
+    required String name,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.02),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withOpacity(0.04)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        color: Colors.black.withOpacity(0.4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.black.withOpacity(0.25),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSecondaryActions(Trip trip, AsyncValue<dynamic> passengerAsync) {
@@ -1717,6 +1861,8 @@ class _DriverTripManagementScreenState
     ];
     String? selectedReason;
 
+    if (!mounted) return;
+
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1826,31 +1972,5 @@ class _DriverTripManagementScreenState
     }
 
     return _currentDriverHeading;
-  }
-
-  Widget _buildStatItem(IconData icon, String value, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: Colors.black54),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            color: Colors.black,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w500,
-            color: Colors.black38,
-          ),
-        ),
-      ],
-    );
   }
 }

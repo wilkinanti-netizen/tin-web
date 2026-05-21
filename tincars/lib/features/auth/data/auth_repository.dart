@@ -44,6 +44,7 @@ abstract class AuthRepository {
   Future<void> signInWithGoogle();
   Future<void> signInWithApple();
   Future<void> signOut();
+  Future<void> sendPasswordResetEmail(String email);
 }
 
 // Firebase Implementation
@@ -269,6 +270,17 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     AppLogger.log('AuthRepository: Cerrando sesión...');
     await _auth.signOut();
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    AppLogger.log('AuthRepository: Enviando correo de recuperación a $email');
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      AppLogger.log('AuthRepository: Error enviando correo de recuperación: $e');
+      rethrow;
+    }
   }
 }
 

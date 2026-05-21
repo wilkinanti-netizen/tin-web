@@ -6,6 +6,7 @@ import 'package:tincars/features/profile/domain/models/payout_request.dart';
 import 'package:tincars/features/profile/domain/models/payout_method.dart';
 import 'package:tincars/features/profile/domain/models/emergency_contact.dart';
 import 'package:tincars/features/profile/domain/models/driver_verification.dart';
+import 'package:tincars/features/profile/domain/models/wallet_transaction.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ProfileRepository {
@@ -134,18 +135,48 @@ class ProfileRepository {
     }
   }
 
-  // Actualizar saldo de la billetera
+  // Actualizar saldo de la billetera y registrar la transacción
   Future<void> updateWalletBalance(
     String userId,
     double amount, {
     bool isIncrement = true,
+    String? type,
+    String? description,
+    String? tripId,
   }) async {
     try {
+      // 1. Actualizar balance en el perfil
       await _firestore.collection('profiles').doc(userId).update({
         'wallet_balance': FieldValue.increment(isIncrement ? amount : -amount),
       });
+
+      // 2. Registrar transacción en la subcolección
+      final txRef = _firestore
+          .collection('profiles')
+          .doc(userId)
+          .collection('transactions')
+          .doc();
+
+      final txType = type ?? (isIncrement ? 'topup' : 'payment');
+      final txDesc = description ??
+          (isIncrement ? 'Recarga de saldo' : 'Cobro por servicio');
+
+      final transaction = WalletTransaction(
+        id: txRef.id,
+        userId: userId,
+        type: txType,
+        amount: isIncrement ? amount : -amount,
+        description: txDesc,
+        timestamp: DateTime.now(),
+        tripId: tripId,
+      );
+
+      await txRef.set(transaction.toJson());
+      AppLogger.log(
+        '[WALLET] Transacción registrada con éxito para el usuario $userId: $txDesc ($amount)',
+      );
     } catch (e) {
-      AppLogger.log('Error al actualizar billetera: $e');
+      AppLogger.log('Error al actualizar billetera y registrar transacción: $e');
       rethrow;
     }
   }

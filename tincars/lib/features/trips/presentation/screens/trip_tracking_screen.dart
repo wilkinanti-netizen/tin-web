@@ -44,6 +44,88 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   double _waitFeeAccumulated = 0.0;
   int _extraWaitSeconds = 0;
   TripStatus? _lastStatus;
+  bool _isAutoCenterEnabled = true;
+
+  static const String _silverMapStyle = '''
+[
+  {
+    "elementType": "geometry",
+    "stylers": [{"color": "#f5f5f5"}]
+  },
+  {
+    "elementType": "labels.icon",
+    "stylers": [{"visibility": "off"}]
+  },
+  {
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#616161"}]
+  },
+  {
+    "elementType": "labels.text.stroke",
+    "stylers": [{"color": "#f5f5f5"}]
+  },
+  {
+    "featureType": "administrative.land_parcel",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#bdbdbd"}]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "geometry",
+    "stylers": [{"color": "#eeeeee"}]
+  },
+  {
+    "featureType": "poi",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#757575"}]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "geometry",
+    "stylers": [{"color": "#e5e5e5"}]
+  },
+  {
+    "featureType": "road",
+    "elementType": "geometry",
+    "stylers": [{"color": "#ffffff"}]
+  },
+  {
+    "featureType": "road.arterial",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#757575"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [{"color": "#dadada"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#616161"}]
+  },
+  {
+    "featureType": "road.local",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#9e9e9e"}]
+  },
+  {
+    "featureType": "transit.line",
+    "elementType": "geometry",
+    "stylers": [{"color": "#e5e5e5"}]
+  },
+  {
+    "featureType": "water",
+    "elementType": "geometry",
+    "stylers": [{"color": "#c9c9c9"}]
+  },
+  {
+    "featureType": "water",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#9e9e9e"}]
+  }
+]
+''';
 
   // Cache para evitar flickering
   BitmapDescriptor? _pickupIcon;
@@ -718,9 +800,11 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             if (trip.status == TripStatus.accepted ||
                 trip.status == TripStatus.arrived ||
                 trip.status == TripStatus.inProgress) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _moveCameraToDriver(_smoothDriverLoc ?? driverLoc);
-              });
+              if (_isAutoCenterEnabled) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _moveCameraToDriver(_smoothDriverLoc ?? driverLoc);
+                });
+              }
             }
           }
 
@@ -738,17 +822,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               _lastStatus != TripStatus.inProgress) {
             _lastStatus = TripStatus.inProgress;
             _waitTimer?.cancel();
-
-            // Si hubo cargos por espera, actualizamos el precio del viaje en DB
-            if (_waitFeeAccumulated > 0) {
-              final newPrice = trip.price + _waitFeeAccumulated;
-              final waitFee = _waitFeeAccumulated;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                ref
-                    .read(tripControllerProvider.notifier)
-                    .updatePrice(trip.id, newPrice, waitFee: waitFee);
-              });
-            }
 
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => _startTripTimer(),
@@ -913,25 +986,34 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       color: Colors.white,
       child: Stack(
         children: [
-          GoogleMap(
-            key: ValueKey('tracking_map_${widget.tripId}'),
-            onMapCreated: (controller) {
-              mapController = controller;
-              // Removed silver style
-              if (_lastDirections != null)
-                _fitBounds(_lastDirections!['bounds']);
+          Listener(
+            onPointerDown: (_) {
+              if (_isAutoCenterEnabled) {
+                setState(() {
+                  _isAutoCenterEnabled = false;
+                });
+              }
             },
-            initialCameraPosition: CameraPosition(
-              target: trip.pickupLocation,
-              zoom: 15,
+            child: GoogleMap(
+              key: ValueKey('tracking_map_${widget.tripId}'),
+              onMapCreated: (controller) {
+                mapController = controller;
+                controller.setMapStyle(_silverMapStyle);
+                if (_lastDirections != null)
+                  _fitBounds(_lastDirections!['bounds']);
+              },
+              initialCameraPosition: CameraPosition(
+                target: trip.pickupLocation,
+                zoom: 15,
+              ),
+              markers: markers,
+              polylines: polylines,
+              zoomControlsEnabled: false,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              compassEnabled: false,
+              mapToolbarEnabled: false,
             ),
-            markers: markers,
-            polylines: polylines,
-            zoomControlsEnabled: false,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            compassEnabled: false,
-            mapToolbarEnabled: false,
           ),
           // Reduced and more elegant floating status HUD
           Positioned(
@@ -947,6 +1029,29 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               ],
             ),
           ),
+          // GPS / Re-centrar FAB al estilo Uber
+          if (!_isAutoCenterEnabled)
+            Positioned(
+              bottom: MediaQuery.of(context).size.height * 0.38 + 16,
+              right: 16,
+              child: FloatingActionButton(
+                heroTag: 'passenger_gps_fab',
+                onPressed: () {
+                  setState(() => _isAutoCenterEnabled = true);
+                  final targetLoc = _smoothDriverLoc ?? trip.driverLocation;
+                  if (targetLoc != null) {
+                    _moveCameraToDriver(targetLoc);
+                  } else {
+                    _moveCameraToDriver(trip.pickupLocation);
+                  }
+                },
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.blueAccent,
+                elevation: 6,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.gps_fixed_rounded, size: 24),
+              ),
+            ),
           // Premium Draggable Panel
           DraggableScrollableSheet(
             initialChildSize: 0.38,
@@ -1648,7 +1753,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                       builder: (context) => TripCancellationScreen(trip: trip),
                     ),
                   );
-                  if (result == true && mounted) {
+                  if (result == true && context.mounted) {
                     context.go('/home');
                   }
                 },

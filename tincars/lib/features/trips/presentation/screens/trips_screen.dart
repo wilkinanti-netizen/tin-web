@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/features/driver/presentation/screens/driver_trip_detail_screen.dart';
+import 'package:tincars/features/trips/domain/services/pricing_service.dart';
 
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
@@ -61,7 +62,7 @@ class TripsScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             itemBuilder: (context, index) {
               final trip = trips[index];
-              return _buildTripCard(context, trip);
+              return _buildTripCard(context, ref, trip);
             },
           );
         },
@@ -78,7 +79,7 @@ class TripsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTripCard(BuildContext context, Trip trip) {
+  Widget _buildTripCard(BuildContext context, WidgetRef ref, Trip trip) {
     final dateFormat = DateFormat('dd MMM, HH:mm', 'es');
     final isCancelled = trip.status == TripStatus.cancelled;
 
@@ -137,7 +138,7 @@ class TripsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        trip.vehicleType.toUpperCase(),
+                        ref.read(pricingServiceProvider).getVehicleName(trip.vehicleType).toUpperCase(),
                         style: const TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w900,

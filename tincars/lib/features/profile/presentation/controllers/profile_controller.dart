@@ -8,6 +8,7 @@ import 'package:tincars/features/profile/domain/models/payout_request.dart';
 import 'package:tincars/features/profile/domain/models/payout_method.dart';
 import 'package:tincars/features/profile/domain/models/emergency_contact.dart';
 import 'package:tincars/features/profile/domain/models/driver_verification.dart';
+import 'package:tincars/features/profile/domain/models/wallet_transaction.dart';
 import 'package:tincars/core/services/session_service.dart';
 import 'package:tincars/features/auth/data/auth_repository.dart';
 
@@ -66,6 +67,21 @@ final emergencyContactsProvider = FutureProvider<List<EmergencyContact>>((ref) a
   final user = ref.watch(authStateChangesProvider).value;
   if (user == null) return [];
   return ref.read(profileRepositoryProvider).getEmergencyContacts(user.uid);
+});
+
+final walletTransactionsProvider = StreamProvider<List<WalletTransaction>>((ref) {
+  final user = ref.watch(authStateChangesProvider).value;
+  if (user == null) return Stream.value([]);
+  
+  return FirebaseFirestore.instance
+      .collection('profiles')
+      .doc(user.uid)
+      .collection('transactions')
+      .orderBy('timestamp', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => WalletTransaction.fromJson({...doc.data(), 'id': doc.id}))
+          .toList());
 });
 
 final sessionLockProvider = StreamProvider<bool>((ref) async* {

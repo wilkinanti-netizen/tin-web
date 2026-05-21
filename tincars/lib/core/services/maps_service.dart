@@ -6,6 +6,20 @@ import 'dart:math' as math;
 class MapsService {
   final String _apiKey = "AIzaSyB5w2dlzZa8gLc2z0gN31oDFGo8dh_jhrU";
 
+  // Static route cache to prevent redundant Maps API calls
+  static final Map<String, Map<String, dynamic>> _directionsCache = {};
+
+  // Hashing key helper rounding coordinates to 4 decimal places (~11 meters)
+  String _getDirectionsCacheKey(LatLng origin, LatLng destination, List<LatLng> waypoints) {
+    String formatLatLng(LatLng l) {
+      return "${l.latitude.toStringAsFixed(4)},${l.longitude.toStringAsFixed(4)}";
+    }
+    final originStr = formatLatLng(origin);
+    final destStr = formatLatLng(destination);
+    final waypointsStr = waypoints.map(formatLatLng).join('|');
+    return "$originStr->$destStr|$waypointsStr";
+  }
+
   Future<List<Map<String, dynamic>>> getAutocompleteSuggestions(
     String input,
     String sessionToken,
@@ -67,6 +81,12 @@ class MapsService {
     LatLng destination, {
     List<LatLng> waypoints = const [],
   }) async {
+    final cacheKey = _getDirectionsCacheKey(origin, destination, waypoints);
+    if (_directionsCache.containsKey(cacheKey)) {
+      print("[MapsService] cache HIT for route key: $cacheKey");
+      return _directionsCache[cacheKey]!;
+    }
+
     String waypointsStr = "";
     if (waypoints.isNotEmpty) {
       waypointsStr =
@@ -105,7 +125,7 @@ class MapsService {
               durationText = firstLeg['duration']['text'] ?? durationText;
             }
 
-            return {
+            final result = {
               'polyline': polylinePoints,
               'distance': totalDistance,
               'duration': totalDuration,
@@ -113,6 +133,16 @@ class MapsService {
               'duration_text': durationText,
               'bounds': route['bounds'],
             };
+
+            // Limit cache size to avoid memory issues (simple eviction)
+            if (_directionsCache.length >= 200) {
+              print("[MapsService] cache reached limit, clearing all entries.");
+              _directionsCache.clear();
+            }
+            _directionsCache[cacheKey] = result;
+            print("[MapsService] cache MISS. Stored route under key: $cacheKey");
+
+            return result;
           } else {
             throw Exception(
               'No se encontró una ruta de conducción entre estos puntos.',
@@ -121,7 +151,7 @@ class MapsService {
         } else {
           throw Exception(
             data['error_message'] ??
-                'Error al conectar con Google Maps: ${data['status']}',
+            'Error al conectar con Google Maps: ${data['status']}',
           );
         }
       }

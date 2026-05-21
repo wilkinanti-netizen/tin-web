@@ -139,4 +139,11 @@ class AuthController extends _$AuthController {
     ref.invalidate(driverProfileProvider);
     await ref.read(authRepositoryProvider).signOut();
   }
+
+  Future<void> resetPassword(String email) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).sendPasswordResetEmail(email),
+    );
+  }
 }

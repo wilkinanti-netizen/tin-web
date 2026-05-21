@@ -143,16 +143,44 @@ class TripController extends AsyncNotifier<void> {
           if (trip.paymentMethod.toLowerCase() == 'cash') {
             // Si es EFECTIVO, el conductor ya tiene el dinero. Descontamos la comisión de su saldo.
             if (commissionAmount > 0) {
-              await _profileRepo.updateWalletBalance(trip.driverId!, commissionAmount, isIncrement: false);
+              await _profileRepo.updateWalletBalance(
+                trip.driverId!,
+                commissionAmount,
+                isIncrement: false,
+                type: 'commission',
+                description: 'Comisión por viaje ${trip.id.substring(0, 8)} (Efectivo)',
+                tripId: trip.id,
+              );
             }
           } else if (trip.paymentMethod == 'Wallet') {
             // Si es WALLET, el pasajero pagó a la app. Sumamos el neto al saldo del conductor.
-            await _profileRepo.updateWalletBalance(trip.driverId!, netEarnings, isIncrement: true);
+            await _profileRepo.updateWalletBalance(
+              trip.driverId!,
+              netEarnings,
+              isIncrement: true,
+              type: 'trip_payment',
+              description: 'Ganancia por viaje ${trip.id.substring(0, 8)} (Digital)',
+              tripId: trip.id,
+            );
             // Descontamos el total del saldo del pasajero
-            await _profileRepo.updateWalletBalance(trip.passengerId, trip.price, isIncrement: false);
+            await _profileRepo.updateWalletBalance(
+              trip.passengerId,
+              trip.price,
+              isIncrement: false,
+              type: 'payment',
+              description: 'Pago de viaje ${trip.id.substring(0, 8)}',
+              tripId: trip.id,
+            );
           } else {
              // Otros métodos (Stripe/Tarjeta): El neto va al saldo del conductor
-             await _profileRepo.updateWalletBalance(trip.driverId!, netEarnings, isIncrement: true);
+             await _profileRepo.updateWalletBalance(
+               trip.driverId!,
+               netEarnings,
+               isIncrement: true,
+               type: 'trip_payment',
+               description: 'Ganancia por viaje ${trip.id.substring(0, 8)} (Tarjeta)',
+               tripId: trip.id,
+             );
           }
 
           ref.invalidate(driverProfileProvider);
@@ -256,6 +284,9 @@ class TripController extends AsyncNotifier<void> {
             trip.passengerId,
             tipAmount,
             isIncrement: false,
+            type: 'payment',
+            description: 'Propina para conductor - Viaje ${trip.id.substring(0, 8)}',
+            tripId: trip.id,
           );
           // Sumar al conductor
           if (trip.driverId != null) {
@@ -263,6 +294,9 @@ class TripController extends AsyncNotifier<void> {
               trip.driverId!,
               tipAmount,
               isIncrement: true,
+              type: 'trip_payment',
+              description: 'Propina recibida - Viaje ${trip.id.substring(0, 8)}',
+              tripId: trip.id,
             );
           }
         }
@@ -294,16 +328,26 @@ class TripController extends AsyncNotifier<void> {
           profile.referredById!,
           100.0,
           isIncrement: true,
+          type: 'refund',
+          description: 'Bono de referido por 100 viajes de ${profile.fullName}',
         );
         if (driverId != null) await repo.addToTotalEarnings(driverId, 200.0);
         ref.invalidate(userProfileProvider);
         ref.invalidate(driverProfileProvider);
       } else if (count == 1) {
-        await repo.updateWalletBalance(passengerId, 5.0, isIncrement: true);
+        await repo.updateWalletBalance(
+          passengerId,
+          5.0,
+          isIncrement: true,
+          type: 'refund',
+          description: 'Bono de bienvenida por tu primer viaje',
+        );
         await repo.updateWalletBalance(
           profile.referredById!,
           5.0,
           isIncrement: true,
+          type: 'refund',
+          description: 'Bono de referido por el primer viaje de ${profile.fullName}',
         );
         ref.invalidate(userProfileProvider);
       }

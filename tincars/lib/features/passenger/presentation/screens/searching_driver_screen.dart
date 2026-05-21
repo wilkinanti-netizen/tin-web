@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -13,7 +14,6 @@ import 'package:tincars/core/utils/app_logger.dart';
 import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
-import 'package:lottie/lottie.dart' hide Marker;
 
 class SearchingDriverScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -57,8 +57,23 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
   double? _optimisticPrice;
   Map<String, dynamic>? _directions;
   bool _isClosing = false;
-  String? _estimatedDistance;
-  String? _estimatedDuration;
+
+  // New visual variables
+  AnimationController? _radarController;
+  Animation<double>? _radarAnimation;
+
+  int _messageIndex = 0;
+  Timer? _messageTimer;
+  final List<String> _dynamicMessages = [
+    'Buscando el auto más cercano...',
+    'Analizando demanda y tráfico en tiempo real...',
+    'Contactando conductores a menos de 5 min...',
+    'Priorizando tu oferta en la red...',
+    'Optimizando tu ruta de viaje...',
+  ];
+
+  Timer? _cameraDriftTimer;
+  double _currentBearing = 0.0;
 
   @override
   void initState() {
@@ -66,12 +81,67 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
     _createCustomMarkers();
     _startTimeout();
     _fetchDirections();
+
+    // Radar pulse animation
+    _radarController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    )..repeat();
+
+    _radarAnimation = Tween<double>(begin: 30.0, end: 420.0).animate(
+      CurvedAnimation(parent: _radarController!, curve: Curves.easeOut),
+    )..addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    // Cycle messages every 4 seconds
+    _messageTimer = Timer.periodic(const Duration(seconds: 4), (t) {
+      if (mounted) {
+        setState(() {
+          _messageIndex = (_messageIndex + 1) % _dynamicMessages.length;
+        });
+      }
+    });
+
+    // Subtle cinematic camera drone drift
+    Future.delayed(const Duration(seconds: 2), () {
+      _startCameraDrift();
+    });
   }
 
   @override
   void dispose() {
     _timeoutTimer?.cancel();
+    _messageTimer?.cancel();
+    _cameraDriftTimer?.cancel();
+    _radarController?.dispose();
     super.dispose();
+  }
+
+  void _startCameraDrift() {
+    _cameraDriftTimer = Timer.periodic(const Duration(seconds: 8), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      try {
+        _currentBearing = (_currentBearing + 4.0) % 360.0;
+        final double targetZoom = 14.8 + 0.3 * math.sin(_secondsWaiting * 0.1);
+
+        mapController.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: widget.pickupLocation,
+              zoom: targetZoom,
+              bearing: _currentBearing,
+              tilt: 15.0, // High-status perspective tilt
+            ),
+          ),
+        );
+      } catch (_) {}
+    });
   }
 
   Future<void> _fetchDirections() async {
@@ -84,10 +154,6 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
       if (mounted) {
         setState(() {
           _directions = directions;
-          _estimatedDistance =
-              directions['distance_text'] ??
-              "${directions['distance'].toStringAsFixed(1)} km";
-          _estimatedDuration = directions['duration_text'];
         });
         _fitBounds(directions['bounds']);
       }
@@ -197,6 +263,8 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
     final lastChar = String.fromCharCode(66 + widget.intermediateStops.length);
     _dropoffIcon = await _getMarkerIcon(lastChar, Colors.redAccent);
 
+
+
     if (mounted) setState(() {});
   }
 
@@ -258,38 +326,7 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
     return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
   }
 
-  void _increasePrice(double backendPrice) async {
-    if (_isUpdatingPrice) return;
 
-    // Determine the base price to increase from
-    final currentBase = _optimisticPrice ?? backendPrice;
-    final newPrice = currentBase + 1.0; // Increment of 1.00
-
-    setState(() {
-      _isPriceIncreasing = true;
-      _isUpdatingPrice = true;
-      _optimisticPrice = newPrice;
-    });
-
-    try {
-      HapticFeedback.mediumImpact();
-      await ref
-          .read(tripControllerProvider.notifier)
-          .updatePrice(widget.tripId, newPrice);
-      if (mounted) setState(() => _isUpdatingPrice = false);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isPriceIncreasing = false;
-          _isUpdatingPrice = false;
-          _optimisticPrice = backendPrice;
-        });
-      }
-    }
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) setState(() => _isPriceIncreasing = false);
-    });
-  }
 
   void _cancelTrip(Trip trip) async {
     final result = await Navigator.push<bool>(
@@ -457,6 +494,24 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                         zIndexInt: 1,
                       ),
                   },
+                  circles: _radarController != null ? {
+                    Circle(
+                      circleId: const CircleId('radar_pulse_1'),
+                      center: widget.pickupLocation,
+                      radius: _radarAnimation!.value,
+                      fillColor: Colors.blueAccent.withValues(alpha: 0.08 * (1.0 - _radarController!.value)),
+                      strokeColor: Colors.blueAccent.withValues(alpha: 0.25 * (1.0 - _radarController!.value)),
+                      strokeWidth: 2,
+                    ),
+                    Circle(
+                      circleId: const CircleId('radar_pulse_2'),
+                      center: widget.pickupLocation,
+                      radius: _radarAnimation!.value * 0.65,
+                      fillColor: Colors.blueAccent.withValues(alpha: 0.12 * (1.0 - (_radarController!.value * 1.5).clamp(0.0, 1.0))),
+                      strokeColor: Colors.blueAccent.withValues(alpha: 0.3 * (1.0 - (_radarController!.value * 1.5).clamp(0.0, 1.0))),
+                      strokeWidth: 1,
+                    ),
+                  } : {},
                   zoomControlsEnabled: false,
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
@@ -558,12 +613,23 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                       children: [
                         Row(
                           children: [
-                            SizedBox(
-                              width: 60,
-                              height: 60,
-                              child: Lottie.network(
-                                'https://assets10.lottiefiles.com/packages/lf20_m6cu8sh7.json',
-                                fit: BoxFit.contain,
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                    backgroundColor: Colors.black12,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 18),
@@ -580,13 +646,20 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                                       letterSpacing: 1.5,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    l10n.connectingDrivers,
-                                    style: const TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                                  const SizedBox(height: 4),
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 500),
+                                    transitionBuilder: (Widget child, Animation<double> animation) {
+                                      return FadeTransition(opacity: animation, child: child);
+                                    },
+                                    child: Text(
+                                      _dynamicMessages[_messageIndex],
+                                      key: ValueKey<String>(_dynamicMessages[_messageIndex]),
+                                      style: TextStyle(
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -606,7 +679,7 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                                     _priceStatusDot(),
                                     const SizedBox(width: 8),
                                     Text(
-                                      "${l10n.yourOffer} · ${widget.vehicleType.toUpperCase()}",
+                                      "${l10n.yourOffer} · ${ref.read(pricingServiceProvider).getVehicleName(widget.vehicleType).toUpperCase()}",
                                       style: const TextStyle(
                                         color: Colors.black54,
                                         fontWeight: FontWeight.w900,
@@ -633,12 +706,61 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
                                 ),
                               ],
                             ),
-                            _buildGlassActionButton(
-                              icon: Icons.add_circle_outline_rounded,
-                              label: "${l10n.addPrice} \$1.00",
-                              onTap: () => _increasePrice(trip.price),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.amber[50]!.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.amber[300]!.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.flash_on_rounded, color: Colors.amber[800], size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "PRIORITY MATCH",
+                                    style: TextStyle(
+                                      color: Colors.amber[900],
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "INCENTIVAR CONDUCTORES CERCANOS (MÁS RÁPIDO)",
+                            style: TextStyle(
+                              color: Colors.black38,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: [
+                              _buildIncentiveChip(1.0, trip.price),
+                              const SizedBox(width: 8),
+                              _buildIncentiveChip(2.0, trip.price),
+                              const SizedBox(width: 8),
+                              _buildIncentiveChip(3.0, trip.price),
+                              const SizedBox(width: 8),
+                              _buildIncentiveChip(5.0, trip.price),
+                            ],
+                          ),
                         ),
 
                         // Stats Row (KM, Time, Stops Cost)
@@ -762,37 +884,7 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
     );
   }
 
-  Widget _buildGlassActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.green, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.w900,
-                fontSize: 11,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildStatItem(IconData icon, String value, String label) {
     return Column(
@@ -816,6 +908,75 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _increasePriceWithAmount(double backendPrice, double amount) async {
+    if (_isUpdatingPrice) return;
+
+    final currentBase = _optimisticPrice ?? backendPrice;
+    final newPrice = currentBase + amount;
+
+    setState(() {
+      _isPriceIncreasing = true;
+      _isUpdatingPrice = true;
+      _optimisticPrice = newPrice;
+    });
+
+    try {
+      HapticFeedback.mediumImpact();
+      await ref
+          .read(tripControllerProvider.notifier)
+          .updatePrice(widget.tripId, newPrice);
+      if (mounted) setState(() => _isUpdatingPrice = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isPriceIncreasing = false;
+          _isUpdatingPrice = false;
+          _optimisticPrice = backendPrice;
+        });
+      }
+    }
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _isPriceIncreasing = false);
+    });
+  }
+
+  Widget _buildIncentiveChip(double amount, double backendPrice) {
+    return GestureDetector(
+      onTap: () => _increasePriceWithAmount(backendPrice, amount),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.black.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.bolt_rounded,
+              color: Colors.amber[700],
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "+\$${amount.toStringAsFixed(0)}",
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

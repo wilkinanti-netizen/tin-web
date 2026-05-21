@@ -7,6 +7,7 @@ import 'package:tincars/features/driver/presentation/screens/invoice_pdf_helper.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
+import 'package:tincars/features/trips/domain/services/pricing_service.dart';
 
 class DriverTripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
@@ -229,7 +230,7 @@ class _DriverTripDetailScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                trip.vehicleType.toUpperCase(),
+                                ref.read(pricingServiceProvider).getVehicleName(trip.vehicleType).toUpperCase(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 16,
