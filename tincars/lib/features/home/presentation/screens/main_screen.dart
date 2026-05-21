@@ -15,7 +15,6 @@ import 'package:tincars/features/driver/presentation/screens/driver_home_screen.
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/features/driver/presentation/screens/earnings_screen.dart';
 import 'package:tincars/features/trips/presentation/screens/trips_screen.dart';
-import 'package:tincars/features/auth/presentation/screens/pending_verification_screen.dart';
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 
 import 'package:tincars/core/widgets/mode_switch_overlay.dart';
@@ -119,11 +118,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
       data: (userProfile) {
-        final isPendingDriver =
-            !isPassenger && userProfile?.driverStatus == DriverStatus.pending;
+        final isDriverActive =
+            !isPassenger && userProfile?.driverStatus == DriverStatus.active;
 
-        if (isPendingDriver) {
-          return const PendingVerificationScreen();
+        if (!isPassenger && !isDriverActive) {
+          return const DriverHomeScreen();
         }
 
         final incomingTrips =

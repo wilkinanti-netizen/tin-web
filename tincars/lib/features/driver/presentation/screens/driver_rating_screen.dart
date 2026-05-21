@@ -173,7 +173,7 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen>
                               ),
                             ),
                             Text(
-                              '\$${(trip.price * 0.8 + (trip.tipAmount ?? 0)).toStringAsFixed(0)}',
+                              '\$${(trip.price * 0.8 + (trip.tipAmount ?? 0)).toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -196,7 +196,7 @@ class _DriverRatingScreenState extends ConsumerState<DriverRatingScreen>
                                 ),
                               ),
                               Text(
-                                '+\$${trip.tipAmount!.toStringAsFixed(0)}',
+                                '+\$${trip.tipAmount!.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w900,

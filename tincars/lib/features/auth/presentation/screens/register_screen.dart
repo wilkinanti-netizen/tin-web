@@ -6,6 +6,7 @@ import 'package:tincars/features/auth/presentation/controllers/auth_controller.d
 import 'package:tincars/core/widgets/premium_glass_container.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tincars/features/profile/domain/models/profiles.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -22,20 +23,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _referralController = TextEditingController();
 
   // Driver specific controllers
+  final _dniController = TextEditingController();
+  DateTime? _birthDate;
+  final _motivationController = TextEditingController();
+  final _hoursPerWeekController = TextEditingController();
   final _ssnController = TextEditingController();
+  bool _hasExperience = false;
+  bool _backgroundCheckConsent = false;
+  bool _termsAccepted = false;
+
   final _vehicleYearController = TextEditingController();
   final _vehicleModelController = TextEditingController();
   final _vehiclePlateController = TextEditingController();
   final _vehicleColorController = TextEditingController();
-  String _selectedVehicleType = 'essentials';
-  bool _backgroundCheckConsent = false;
+  VehicleType _selectedVehicleType = VehicleType.essentials;
 
   bool _isPasswordVisible = false;
   bool _isDriver = false;
-  int _currentStep = 0; // 0: Basic, 1: Driver Info, 2: Documents
+  int _currentStep = 0; // 0: Basic, 1: Info, 2: License, 3: Vehicle
 
   final ImagePicker _picker = ImagePicker();
-  XFile? _licenseImage;
+  XFile? _faceImage;
+  XFile? _licenseFrontImage;
+  XFile? _dniFrontImage;
+  XFile? _dniBackImage;
+  XFile? _registrationImage;
+  XFile? _vehicleImage;
   XFile? _insuranceImage;
 
   @override
@@ -44,12 +57,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _passwordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _referralController.dispose();
+    _dniController.dispose();
+    _motivationController.dispose();
+    _hoursPerWeekController.dispose();
     _ssnController.dispose();
     _vehicleYearController.dispose();
     _vehicleModelController.dispose();
     _vehiclePlateController.dispose();
     _vehicleColorController.dispose();
-    _referralController.dispose();
     super.dispose();
   }
 
@@ -71,9 +87,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _showError("Por favor, ingresa un número de teléfono válido");
       return;
     }
-    final emailRegex = RegExp(r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
+    final emailRegex = RegExp(
+      r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$',
+    );
     if (email.isEmpty || !emailRegex.hasMatch(email)) {
-      _showError("Por favor, ingresa un correo electrónico válido (ejemplo: usuario@gmail.com)");
+      _showError(
+        "Por favor, ingresa un correo electrónico válido (ejemplo: usuario@gmail.com)",
+      );
       return;
     }
     if (password.length < 6) {
@@ -87,16 +107,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (_isDriver && _currentStep == 1) {
-      if (_ssnController.text.trim().isEmpty) {
-        _showError("Los últimos 4 del SSN son obligatorios para conductores");
-        return;
-      }
-      if (_vehiclePlateController.text.trim().isEmpty) {
-        _showError("El número de placa es obligatorio");
-        return;
-      }
-      if (!_backgroundCheckConsent) {
-        _showError("Debes aceptar la verificación de antecedentes");
+      if (_dniController.text.isEmpty ||
+          _birthDate == null ||
+          _faceImage == null ||
+          _dniFrontImage == null ||
+          _dniBackImage == null ||
+          _motivationController.text.isEmpty ||
+          _hoursPerWeekController.text.isEmpty ||
+          _ssnController.text.isEmpty ||
+          !_backgroundCheckConsent ||
+          !_termsAccepted) {
+        _showError(
+          "Por favor completa todos los campos de información personal y acepta los términos",
+        );
         return;
       }
       setState(() => _currentStep = 2);
@@ -104,16 +127,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
 
     if (_isDriver && _currentStep == 2) {
-      if (_licenseImage == null) {
-        _showError("Por favor, sube tu licencia de conducir");
+      if (_licenseFrontImage == null) {
+        _showError(
+          "Por favor, sube la foto frontal de tu licencia de conducir",
+        );
         return;
       }
-      if (_insuranceImage == null) {
-        _showError("Por favor, sube tu seguro vehicular");
+      setState(() => _currentStep = 3);
+      return;
+    }
+
+    if (_isDriver && _currentStep == 3) {
+      if (_registrationImage == null ||
+          _vehicleImage == null ||
+          _insuranceImage == null ||
+          _vehicleModelController.text.isEmpty ||
+          _vehiclePlateController.text.isEmpty) {
+        _showError(
+          "Por favor completa los detalles del vehículo y sube los documentos requeridos",
+        );
         return;
       }
     }
-    
+
     ref
         .read(authControllerProvider.notifier)
         .signUp(
@@ -127,9 +163,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           vehicleModel: _vehicleModelController.text.trim(),
           vehiclePlate: _vehiclePlateController.text.trim(),
           vehicleColor: _vehicleColorController.text.trim(),
-          vehicleType: _selectedVehicleType,
+          vehicleType: _selectedVehicleType.name,
           backgroundCheckConsent: _backgroundCheckConsent,
-          licensePath: _licenseImage?.path,
+          termsAccepted: _termsAccepted,
+          dniNumber: _dniController.text.trim(),
+          birthDate: _birthDate,
+          motivation: _motivationController.text.trim(),
+          hoursPerWeek: int.tryParse(_hoursPerWeekController.text.trim()),
+          hasExperience: _hasExperience,
+          facePath: _faceImage?.path,
+          licenseFrontPath: _licenseFrontImage?.path,
+          dniFrontPath: _dniFrontImage?.path,
+          dniBackPath: _dniBackImage?.path,
+          registrationPath: _registrationImage?.path,
+          vehiclePath: _vehicleImage?.path,
           insurancePath: _insuranceImage?.path,
           referralCode: _referralController.text.trim(),
         );
@@ -145,17 +192,80 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
+  Future<void> _pickImage(String type) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (image != null) {
+        setState(() {
+          switch (type) {
+            case 'face':
+              _faceImage = image;
+              break;
+            case 'license_front':
+              _licenseFrontImage = image;
+              break;
+            case 'dni_front':
+              _dniFrontImage = image;
+              break;
+            case 'dni_back':
+              _dniBackImage = image;
+              break;
+            case 'registration':
+              _registrationImage = image;
+              break;
+            case 'vehicle':
+              _vehicleImage = image;
+              break;
+            case 'insurance_policy':
+              _insuranceImage = image;
+              break;
+          }
+        });
+      }
+    } catch (e) {
+      _showError("Error al seleccionar imagen: $e");
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.white,
+              onPrimary: Colors.black,
+              surface: Color(0xFF1E1E1E),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _birthDate) {
+      setState(() {
+        _birthDate = picked;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authControllerProvider);
 
-    // Listen for auth state changes
     ref.listen<AsyncValue>(authControllerProvider, (previous, next) {
       if (next.hasError) {
         final errorStr = next.error.toString().toLowerCase();
         String displayError = l10n.errorGenericAuth;
-
         if (errorStr.contains('already registered') ||
             errorStr.contains('already in use')) {
           displayError = l10n.errorEmailInUse;
@@ -165,7 +275,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         } else if (errorStr.contains('invalid-email')) {
           displayError = l10n.errorInvalidEmail;
         }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -193,11 +302,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(l10n.successRegister)));
-          // Redirect to login instead of forcing phone OTP
           context.go('/login');
         }
       }
     });
+
+    String titleText = l10n.registerTitle;
+    if (_currentStep == 1) titleText = "Información Personal";
+    if (_currentStep == 2) titleText = "Licencia";
+    if (_currentStep == 3) titleText = "Vehículo";
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -234,11 +347,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _currentStep == 0
-                          ? l10n.registerTitle
-                          : _currentStep == 1
-                          ? "Información del Vehículo"
-                          : "Documentación",
+                      titleText,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             color: Colors.white,
@@ -247,12 +356,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-                    if (_currentStep == 0)
-                      _buildBasicInfoStep(l10n)
-                    else if (_currentStep == 1)
-                      _buildDriverInfoStep()
-                    else
-                      _buildDocumentsStep(),
+                    if (_currentStep == 0) _buildBasicInfoStep(l10n),
+                    if (_currentStep == 1) _buildPersonalInfoStep(),
+                    if (_currentStep == 2) _buildLicenseStep(),
+                    if (_currentStep == 3) _buildVehicleStep(),
                     const SizedBox(height: 30),
                     SizedBox(
                       width: double.infinity,
@@ -271,7 +378,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 color: Colors.black,
                               )
                             : Text(
-                                _isDriver && _currentStep < 2
+                                _isDriver && _currentStep < 3
                                     ? "Siguiente"
                                     : l10n.registerButton,
                                 style: const TextStyle(
@@ -281,52 +388,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                       ),
                     ),
-                    if (_currentStep == 0) ...[
-                      const SizedBox(height: 20),
-                      const SizedBox(height: 10),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        children: [
-                          const Text(
-                            'By signing up you agree to our ',
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 12,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => context.push('/terms'),
-                            child: const Text(
-                              'Terms',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                          const Text(
-                            ' and ',
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 12,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => context.push('/privacy'),
-                            child: const Text(
-                              'Privacy Policy',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -340,11 +401,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _buildBasicInfoStep(AppLocalizations l10n) {
     return Column(
       children: [
-        _buildTextField(
-          _nameController,
-          '${l10n.nameLabel} * (Obligatorio)',
-          Icons.person,
-        ),
+        _buildTextField(_nameController, '${l10n.nameLabel} *', Icons.person),
         const SizedBox(height: 16),
         _buildTextField(
           _phoneController,
@@ -374,7 +431,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           _referralController,
           'Código de Referido (Opcional)',
           Icons.card_giftcard,
-          keyboardType: TextInputType.text,
         ),
         const SizedBox(height: 25),
         const Text(
@@ -397,15 +453,151 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildDriverInfoStep() {
+  Widget _buildPersonalInfoStep() {
     return Column(
       children: [
         _buildTextField(
-          _ssnController,
-          'Últimos 4 del SSN',
-          Icons.security,
+          _dniController,
+          'Numero de licencia',
+          Icons.badge_outlined,
           keyboardType: TextInputType.number,
         ),
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: () => _selectDate(context),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white30),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.cake_outlined, color: Colors.white70),
+                const SizedBox(width: 12),
+                Text(
+                  _birthDate == null
+                      ? "Fecha de Nacimiento"
+                      : "${_birthDate!.day}/${_birthDate!.month}/${_birthDate!.year}",
+                  style: TextStyle(
+                    color: _birthDate == null ? Colors.white70 : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildImageSelector(
+          "Foto de Perfil (Selfie)",
+          "face",
+          _faceImage,
+          Icons.person_outline,
+        ),
+        _buildImageSelector(
+          "Id Frontal",
+          "dni_front",
+          _dniFrontImage,
+          Icons.credit_card,
+        ),
+        _buildImageSelector(
+          "Id Posterior",
+          "dni_back",
+          _dniBackImage,
+          Icons.credit_card,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          _motivationController,
+          '¿Por qué manejas con Tin?',
+          Icons.lightbulb_outline,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          _hoursPerWeekController,
+          'Horas por semana',
+          Icons.schedule_outlined,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+        _buildToggleCard(
+          label: _hasExperience
+              ? "Sí, tengo experiencia"
+              : "No tengo experiencia previa",
+          value: _hasExperience,
+          onChanged: (val) => setState(() => _hasExperience = val),
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          _ssnController,
+          'Número de Seguro Social (SSN)',
+          Icons.fingerprint,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 16),
+        _buildConsentCard(
+          icon: Icons.manage_search_outlined,
+          title: "Permiso para Verificación de Antecedentes",
+          description: "Autorizo a Tin a realizar una verificación.",
+          value: _backgroundCheckConsent,
+          onChanged: (val) => setState(() => _backgroundCheckConsent = val),
+        ),
+        const SizedBox(height: 16),
+        _buildConsentCard(
+          icon: Icons.gavel_outlined,
+          title: "Acepto los Términos y Condiciones",
+          description: "He leído y acepto los Términos de Servicio.",
+          value: _termsAccepted,
+          onChanged: (val) => setState(() => _termsAccepted = val),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLicenseStep() {
+    return Column(
+      children: [
+        _buildImageSelector(
+          "Licencia (Frente)",
+          "license_front",
+          _licenseFrontImage,
+          Icons.assignment_ind_outlined,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVehicleStep() {
+    return Column(
+      children: [
+        _buildImageSelector(
+          "Seguro del carro",
+          "registration",
+          _registrationImage,
+          Icons.description_outlined,
+        ),
+        _buildImageSelector(
+          "Foto del Vehículo",
+          "vehicle",
+          _vehicleImage,
+          Icons.directions_car_outlined,
+        ),
+        _buildImageSelector(
+          "Foto de Póliza de Seguro",
+          "insurance_policy",
+          _insuranceImage,
+          Icons.policy_outlined,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(
+          _vehicleModelController,
+          'Modelo del Vehículo',
+          Icons.car_repair,
+        ),
+        const SizedBox(height: 16),
+        _buildTextField(_vehiclePlateController, 'Número de Placa', Icons.pin),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -428,41 +620,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        _buildTextField(
-          _vehicleModelController,
-          'Marca y Modelo',
-          Icons.car_repair,
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(_vehiclePlateController, 'Número de Placa', Icons.pin),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _selectedVehicleType,
-          dropdownColor: Colors.grey[900],
-          style: const TextStyle(color: Colors.white),
-          decoration: _getInputDecoration('Tipo de Servicio', Icons.category),
-          items: const [
-            DropdownMenuItem(value: 'essentials', child: Text('Essentials ')),
-            DropdownMenuItem(
-              value: 'essentials_xl',
-              child: Text('Essentials XL'),
-            ),
-            DropdownMenuItem(value: 'executive', child: Text('Executive ')),
-          ],
-          onChanged: (val) => setState(() => _selectedVehicleType = val!),
-        ),
-        const SizedBox(height: 16),
-        CheckboxListTile(
-          title: const Text(
-            "Consiento la verificación de antecedentes según leyes de USA",
-            style: TextStyle(color: Colors.white, fontSize: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white30),
           ),
-          value: _backgroundCheckConsent,
-          activeColor: Colors.white,
-          checkColor: Colors.black,
-          onChanged: (val) => setState(() => _backgroundCheckConsent = val!),
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: EdgeInsets.zero,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<VehicleType>(
+              value: _selectedVehicleType,
+              isExpanded: true,
+              dropdownColor: Colors.grey[900],
+              iconEnabledColor: Colors.white,
+              style: const TextStyle(color: Colors.white),
+              items: VehicleType.values.map((type) {
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(type.name.toUpperCase()),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedVehicleType = val);
+              },
+            ),
+          ),
         ),
       ],
     );
@@ -481,28 +663,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       obscureText: obscureText,
       style: const TextStyle(color: Colors.white),
       keyboardType: keyboardType,
-      decoration: _getInputDecoration(
-        label,
-        icon,
-      ).copyWith(suffixIcon: suffixIcon),
-    );
-  }
-
-  InputDecoration _getInputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      prefixIcon: Icon(icon, color: Colors.white70),
-      enabledBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.white30),
-        borderRadius: BorderRadius.circular(12),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white70),
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.white30),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.white),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        suffixIcon: suffixIcon,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: Colors.white),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.1),
     );
   }
 
@@ -541,112 +717,166 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildDocumentsStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Documentación Requerida',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Sube fotos claras de tus documentos para verificación.',
-          style: TextStyle(color: Colors.white70, fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        _buildDocumentPicker(
-          'Licencia de Conducir',
-          _licenseImage,
-          () => _pickImage(true),
-        ),
-        const SizedBox(height: 16),
-        _buildDocumentPicker(
-          'Seguro Vehicular',
-          _insuranceImage,
-          () => _pickImage(false),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDocumentPicker(String title, XFile? image, VoidCallback onTap) {
+  Widget _buildImageSelector(
+    String title,
+    String type,
+    XFile? file,
+    IconData defaultIcon,
+  ) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => _pickImage(type),
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: image != null ? Colors.greenAccent : Colors.white24,
+            color: file != null ? Colors.greenAccent : Colors.white24,
+            width: file != null ? 2 : 1,
           ),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(
-                  image != null ? Icons.check_circle : Icons.upload_file,
-                  color: image != null ? Colors.greenAccent : Colors.white70,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  image: file != null
+                      ? DecorationImage(
+                          image: File(file.path).absolute.existsSync()
+                              ? FileImage(File(file.path))
+                              : NetworkImage(file.path) as ImageProvider,
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
-                const SizedBox(width: 12),
-                Text(
+                child: file == null
+                    ? Icon(defaultIcon, color: Colors.white70, size: 24)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
+                    fontWeight: file != null
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    fontSize: 15,
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                const Spacer(),
-                if (image != null)
-                  const Text(
-                    'CAMBIAR',
-                    style: TextStyle(
-                      color: Colors.white30,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-              ],
-            ),
-            if (image != null) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(image.path),
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
                 ),
               ),
+              Icon(
+                file != null
+                    ? Icons.check_circle
+                    : Icons.arrow_forward_ios_rounded,
+                color: file != null ? Colors.greenAccent : Colors.white30,
+                size: 20,
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleCard({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: value ? Colors.white : Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: value ? Colors.white : Colors.white30),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              value ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: value ? Colors.black : Colors.white70,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: value ? Colors.black : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _pickImage(bool isLicense) async {
-    try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        setState(() {
-          if (isLicense) {
-            _licenseImage = image;
-          } else {
-            _insuranceImage = image;
-          }
-        });
-      }
-    } catch (e) {
-      _showError("Error al seleccionar imagen: $e");
-    }
+  Widget _buildConsentCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: value
+              ? Colors.white.withOpacity(0.2)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: value ? Colors.greenAccent : Colors.white30,
+            width: value ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              value ? Icons.check_circle : icon,
+              color: value ? Colors.greenAccent : Colors.white70,
+              size: 24,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -162,7 +162,7 @@ class TripsScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            'ESPERA: +\$${trip.waitFee!.toStringAsFixed(0)}',
+                            'ESPERA: +\$${trip.waitFee!.toStringAsFixed(2)}',
                             style: const TextStyle(
                               color: Colors.orange,
                               fontSize: 9,
@@ -175,7 +175,7 @@ class TripsScreen extends ConsumerWidget {
                 ],
               ),
               Text(
-                '\$${trip.price.toStringAsFixed(0)}',
+                '\$${trip.price.toStringAsFixed(2)}',
                 style: TextStyle(
                   color: isCancelled ? Colors.grey : Colors.black,
                   fontWeight: FontWeight.w900,

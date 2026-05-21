@@ -10,6 +10,7 @@ import 'package:tin_admin/features/admin/presentation/screens/active_driver_prof
 import 'package:tin_admin/features/admin/presentation/screens/passenger_profile_screen.dart';
 import 'package:tin_admin/features/admin/presentation/screens/admin_settings_tab.dart';
 import 'package:tin_admin/features/admin/presentation/screens/admin_notifications_tab.dart';
+import 'package:tin_admin/features/admin/presentation/screens/admin_support_tab.dart';
 class AdminMainScreen extends ConsumerStatefulWidget {
   const AdminMainScreen({super.key});
 
@@ -29,6 +30,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
     'HISTORIAL',
     'AJUSTES',
     'NOTIFICACIONES',
+    'SOPORTE',
   ];
 
   final List<IconData> _menuIcons = [
@@ -40,6 +42,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
     Icons.assignment_turned_in,
     Icons.settings,
     Icons.send_rounded,
+    Icons.support_agent_rounded,
   ];
 
   Widget _getSelectedView() {
@@ -60,6 +63,8 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
         return const AdminSettingsTab();
       case 7:
         return const AdminNotificationsTab();
+      case 8:
+        return const AdminSupportTab();
       default:
         return const _DashboardOverviewTab();
     }
@@ -807,7 +812,8 @@ class _DashboardStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(12), // Reduced padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween, // Use alignment instead of Spacer
+        mainAxisAlignment:
+            MainAxisAlignment.spaceBetween, // Use alignment instead of Spacer
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -822,7 +828,10 @@ class _DashboardStatCard extends StatelessWidget {
               ),
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: trend.contains('+')
                         ? Colors.green.withOpacity(0.1)
@@ -919,13 +928,13 @@ class _PendingTripsTab extends ConsumerWidget {
   }
 }
 
-class _TripCard extends StatelessWidget {
+class _TripCard extends ConsumerWidget {
   final Trip trip;
   final bool showStatus;
   const _TripCard({required this.trip, this.showStatus = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PremiumGlassContainer(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -979,12 +988,50 @@ class _TripCard extends StatelessWidget {
                   ),
                 ],
               ),
-              Text(
-                '\$${trip.price.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '\$${trip.price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (!showStatus) // Only show in PendingTripsTab
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Eliminar viaje'),
+                            content: const Text(
+                              '¿Estás seguro de que quieres eliminar esta solicitud de viaje?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await ref
+                              .read(adminControllerProvider.notifier)
+                              .deleteTrip(trip.id);
+                        }
+                      },
+                    ),
+                ],
               ),
             ],
           ),
@@ -1051,7 +1098,12 @@ class _DriversTab extends ConsumerWidget {
     return profilesAsync.when(
       data: (profiles) {
         final drivers = profiles
-            .where((p) => p.isDriver || p.driverStatus == DriverStatus.pending)
+            .where(
+              (p) =>
+                  p.isDriver ||
+                  p.driverStatus == DriverStatus.pending ||
+                  p.driverStatus == DriverStatus.rejected,
+            )
             .toList();
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(allProfilesProvider),
@@ -1103,40 +1155,202 @@ class _PassengersTab extends ConsumerWidget {
   }
 }
 
-class _PendingDriversTab extends ConsumerWidget {
+class _PendingDriversTab extends ConsumerStatefulWidget {
   const _PendingDriversTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PendingDriversTab> createState() => _PendingDriversTabState();
+}
+
+class _PendingDriversTabState extends ConsumerState<_PendingDriversTab> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final profilesAsync = ref.watch(allProfilesProvider);
 
-    return profilesAsync.when(
-      data: (profiles) {
-        final pendingDrivers = profiles
-            .where((p) => p.driverStatus == DriverStatus.pending)
-            .toList();
-
-        if (pendingDrivers.isEmpty) {
-          return const Center(
-            child: Text('No hay conductores pendientes de aprobación'),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(allProfilesProvider),
-          child: ListView.builder(
-            padding: const EdgeInsets.all(20),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: pendingDrivers.length,
-            itemBuilder: (context, index) {
-              final driver = pendingDrivers[index];
-              return _UserCard(user: driver, isDriver: true);
-            },
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
+          child: TextField(
+            onChanged: (value) => setState(() => _searchQuery = value),
+            decoration: InputDecoration(
+              hintText: 'Buscar conductor...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Colors.black.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+        ),
+        Expanded(
+          child: profilesAsync.when(
+            data: (profiles) {
+              final allPending = profiles.where(
+                (p) => p.driverStatus == DriverStatus.pending,
+              );
+              final allRejected = profiles.where(
+                (p) => p.driverStatus == DriverStatus.rejected,
+              );
+
+              final pendingDrivers = allPending
+                  .where(
+                    (p) =>
+                        p.fullName.toLowerCase().contains(
+                          _searchQuery.toLowerCase(),
+                        ) ||
+                        p.email.toLowerCase().contains(
+                          _searchQuery.toLowerCase(),
+                        ),
+                  )
+                  .toList();
+              final rejectedDrivers = allRejected
+                  .where(
+                    (p) =>
+                        p.fullName.toLowerCase().contains(
+                          _searchQuery.toLowerCase(),
+                        ) ||
+                        p.email.toLowerCase().contains(
+                          _searchQuery.toLowerCase(),
+                        ),
+                  )
+                  .toList();
+
+              final newDrivers = pendingDrivers
+                  .where((p) => !p.hasBeenRejected)
+                  .toList();
+              final resubmittedDrivers = pendingDrivers
+                  .where((p) => p.hasBeenRejected)
+                  .toList();
+
+              if (newDrivers.isEmpty &&
+                  resubmittedDrivers.isEmpty &&
+                  rejectedDrivers.isEmpty) {
+                return const Center(
+                  child: Text('No hay conductores pendientes de aprobación'),
+                );
+              }
+
+              final List<Widget> items = [];
+
+              if (newDrivers.isNotEmpty) {
+                items.add(
+                  _SectionHeader(
+                    label: 'NUEVOS EN REVISIÓN',
+                    count: newDrivers.length,
+                    color: Colors.blueAccent,
+                    icon: Icons.new_releases_outlined,
+                  ),
+                );
+                for (final driver in newDrivers) {
+                  items.add(_UserCard(user: driver, isDriver: true));
+                }
+              }
+
+              if (resubmittedDrivers.isNotEmpty) {
+                items.add(
+                  _SectionHeader(
+                    label: 'REENVIADOS',
+                    count: resubmittedDrivers.length,
+                    color: Colors.orange,
+                    icon: Icons.replay_circle_filled_rounded,
+                  ),
+                );
+                for (final driver in resubmittedDrivers) {
+                  items.add(_UserCard(user: driver, isDriver: true));
+                }
+              }
+
+              if (rejectedDrivers.isNotEmpty) {
+                items.add(
+                  _SectionHeader(
+                    label: 'RECHAZADOS',
+                    count: rejectedDrivers.length,
+                    color: Colors.red,
+                    icon: Icons.cancel_outlined,
+                  ),
+                );
+                for (final driver in rejectedDrivers) {
+                  items.add(_UserCard(user: driver, isDriver: true));
+                }
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async => ref.invalidate(allProfilesProvider),
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: items,
+                ),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Error: $e')),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  final IconData icon;
+
+  const _SectionHeader({
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12, top: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count',
+              style: GoogleFonts.outfit(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1166,7 +1380,8 @@ class _UserCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           if (isDriver) {
-            if (user.driverStatus == DriverStatus.pending) {
+            if (user.driverStatus == DriverStatus.pending ||
+                user.driverStatus == DriverStatus.rejected) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -1252,8 +1467,7 @@ class _UserCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (isDriver && user.driverStatus == DriverStatus.pending)
-                _buildActionButtons(ref, context),
+              // Acciones movidas al interior del detalle de conductor
               const Icon(
                 Icons.chevron_right_rounded,
                 color: Colors.black12,
@@ -1439,8 +1653,6 @@ class _LocationRow extends StatelessWidget {
   }
 }
 
-
-
 class _TripHistoryTab extends ConsumerWidget {
   const _TripHistoryTab();
 
@@ -1478,7 +1690,3 @@ class _TripHistoryTab extends ConsumerWidget {
     );
   }
 }
-
-
-
-

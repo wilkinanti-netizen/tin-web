@@ -1,4 +1,3 @@
-import 'package:tincars/core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,13 +13,13 @@ import 'package:tincars/features/driver/presentation/screens/driver_service_sett
 import 'package:tincars/features/profile/presentation/screens/account_details_screen.dart';
 import 'package:tincars/features/driver/presentation/screens/my_vehicles_screen.dart';
 import 'package:tincars/features/driver/presentation/screens/earnings_screen.dart';
-import 'package:tincars/features/driver/presentation/screens/driver_waiting_room.dart';
-import 'package:tincars/features/driver/presentation/screens/driver_registration_screen.dart';
 import 'package:tincars/features/profile/presentation/screens/cards_screen.dart';
 import 'package:tincars/core/localization/locale_provider.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
+import 'package:tincars/features/support/presentation/screens/support_screen.dart';
+import 'package:tincars/features/support/presentation/screens/my_tickets_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -73,6 +72,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .collection('profiles')
           .doc(userId)
           .update({'avatar_url': avatarUrl});
+
+      // Also sync to driver_verifications if the user is a driver
+      final verificationDoc = await FirebaseFirestore.instance
+          .collection('driver_verifications')
+          .doc(userId)
+          .get();
+      if (verificationDoc.exists) {
+        await FirebaseFirestore.instance
+            .collection('driver_verifications')
+            .doc(userId)
+            .update({'face_photo_url': avatarUrl});
+      }
 
       ref.invalidate(userProfileProvider);
 
@@ -414,76 +425,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    if (isPassenger) {
-      try {
-        final profileDoc = await FirebaseFirestore.instance
-            .collection('profiles')
-            .doc(user.uid)
-            .get();
-
-        final status = profileDoc.data()?['driver_status'] as String?;
-        AppLogger.log('===================================================');
-        AppLogger.log('🔍 VERIFICACIÓN DE CONDUCTOR (PERFIL) 🔍');
-        AppLogger.log('👤 Usuario ID: ${user.uid}');
-        AppLogger.log('📄 Estado en BD (profiles.driver_status): $status');
-
-        if (status == null || status == 'inactive' || status.isEmpty) {
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const DriverRegistrationScreen(),
-              ),
-            );
-          }
-          return;
-        } else if (status == 'rejected') {
-          final verificationDocs = await FirebaseFirestore.instance
-              .collection('driver_verifications')
-              .where('driver_id', isEqualTo: user.uid)
-              .orderBy('created_at', descending: true)
-              .limit(1)
-              .get();
-
-          final reason = (verificationDocs.docs.isNotEmpty)
-              ? (verificationDocs.docs.first.data()['rejection_reason']
-                        as String? ??
-                    'No se especificó motivo.')
-              : 'No se especificó motivo.';
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: const Text('Solicitud Rechazada'),
-                content: Text('Tu solicitud fue rechazada: $reason'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return;
-        } else if (status == 'pending') {
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const DriverWaitingRoom()),
-            );
-          }
-          return;
-        }
-      } catch (e) {
-        debugPrint('Error checking driver status: $e');
-        return;
-      }
-    }
-
     HapticFeedback.mediumImpact();
     ref.read(isModeTransitioningProvider.notifier).start();
     await Future.delayed(const Duration(milliseconds: 700));
@@ -502,7 +443,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final l10n = AppLocalizations.of(context)!;
     final userProfile = userProfileAsync.value;
     String fullName = userProfile?.fullName ?? user?.displayName ?? l10n.user;
-    final avatarUrl = userProfile?.avatarUrl;
+
+    // CAMBIO: Usa la foto de Firestore, y si es nula o vacía, usa la de FirebaseAuth
+    String? avatarUrl = userProfile?.avatarUrl;
+    debugPrint('DEBUG AVATAR: Firestore avatarUrl inicial: "$avatarUrl"');
+
+    if (avatarUrl == null || avatarUrl.trim().isEmpty) {
+      avatarUrl = user?.photoURL;
+      debugPrint(
+        'DEBUG AVATAR: Firestore estaba vacío. Usando FirebaseAuth photoURL: "$avatarUrl"',
+      );
+    }
+
+    if (avatarUrl != null && avatarUrl.trim().isEmpty) {
+      avatarUrl = null;
+    }
+    debugPrint('DEBUG AVATAR: URL Final a mostrar: "$avatarUrl"');
+    debugPrint(
+      'DEBUG AVATAR: userProfile mapEmoji: "${userProfile?.mapEmoji}"',
+    );
+
+    // CAMBIO: Variable para saber si Riverpod aún está descargando los datos
+    final isLoadingProfile = userProfileAsync.isLoading;
+    debugPrint('DEBUG AVATAR: isLoadingProfile: $isLoadingProfile');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -624,14 +587,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               spreadRadius: 2,
                             ),
                           ],
-                          image: avatarUrl != null
+                          // Solo intenta mostrar la imagen si ya tenemos la URL y no está cargando
+                          image: avatarUrl != null && !isLoadingProfile
                               ? DecorationImage(
                                   image: NetworkImage(avatarUrl),
                                   fit: BoxFit.cover,
                                 )
                               : null,
                         ),
-                        child: avatarUrl == null
+                        // Manejo de qué mostrar dentro del círculo
+                        child: isLoadingProfile
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.black38,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : avatarUrl == null
                             ? (userProfile?.mapEmoji != null
                                   ? Center(
                                       child: Text(
@@ -878,8 +850,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const SizedBox(height: 32),
 
-
-
             _MenuSection(
               title: l10n.settings,
               items: [
@@ -905,6 +875,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     trailingText: userProfile?.mapEmoji,
                     onTap: () => _editMapEmoji(userProfile?.mapEmoji),
                   ),
+                _MenuItem(
+                  icon: Icons.help_outline_rounded,
+                  label: 'Centro de Ayuda',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SupportScreen()),
+                    );
+                  },
+                ),
                 _MenuItem(
                   icon: Icons.logout_rounded,
                   label: l10n.logout,

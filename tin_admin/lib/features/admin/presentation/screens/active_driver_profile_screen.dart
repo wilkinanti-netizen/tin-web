@@ -1,19 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tin_admin/features/profile/domain/models/profiles.dart';
 import 'package:tin_admin/core/widgets/premium_glass_container.dart';
 import 'package:tin_admin/features/admin/presentation/controllers/admin_controller.dart';
 
-class ActiveDriverProfileScreen extends ConsumerWidget {
+// Provider to stream driver online status from driver_data
+final driverOnlineStatusProvider = StreamProvider.family<bool, String>((ref, driverId) {
+  return FirebaseFirestore.instance
+      .collection('driver_data')
+      .doc(driverId)
+      .snapshots()
+      .map((snap) => snap.data()?['is_online'] as bool? ?? false);
+});
+
+// Provider to stream admin messages for a driver
+final driverAdminMessagesProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, driverId) {
+  return FirebaseFirestore.instance
+      .collection('driver_messages')
+      .doc(driverId)
+      .collection('messages')
+      .orderBy('created_at', descending: true)
+      .limit(20)
+      .snapshots()
+      .map((snap) => snap.docs.map((d) => d.data()).toList());
+});
+
+class ActiveDriverProfileScreen extends ConsumerStatefulWidget {
   final AppUser driver;
 
   const ActiveDriverProfileScreen({super.key, required this.driver});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final driverDataAsync = ref.watch(driverDataProvider(driver.id));
-    final verificationAsync = ref.watch(verificationDataProvider(driver.id));
+  ConsumerState<ActiveDriverProfileScreen> createState() => _ActiveDriverProfileScreenState();
+}
+
+class _ActiveDriverProfileScreenState extends ConsumerState<ActiveDriverProfileScreen> {
+  final _messageController = TextEditingController();
+  bool _sendingMessage = false;
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage(String message) async {
+    if (message.trim().isEmpty) return;
+    setState(() => _sendingMessage = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('driver_messages')
+          .doc(widget.driver.id)
+          .collection('messages')
+          .add({
+        'text': message.trim(),
+        'from': 'admin',
+        'created_at': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+      // Also update a "last_message" field so the driver app can easily detect it
+      await FirebaseFirestore.instance
+          .collection('driver_messages')
+          .doc(widget.driver.id)
+          .set({
+        'last_message': message.trim(),
+        'last_message_at': FieldValue.serverTimestamp(),
+        'has_unread': true,
+        'driver_id': widget.driver.id,
+      }, SetOptions(merge: true));
+
+      _messageController.clear();
+    } finally {
+      setState(() => _sendingMessage = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final driverDataAsync = ref.watch(driverDataProvider(widget.driver.id));
+    final verificationAsync = ref.watch(verificationDataProvider(widget.driver.id));
+    final onlineAsync = ref.watch(driverOnlineStatusProvider(widget.driver.id));
+    final messagesAsync = ref.watch(driverAdminMessagesProvider(widget.driver.id));
+
+    final isOnline = onlineAsync.asData?.value ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
@@ -31,20 +102,39 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Header
+            // ── Profile Header with online status ──
             PremiumGlassContainer(
               padding: const EdgeInsets.all(24),
               color: Colors.white,
               opacity: 1,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.blueAccent.withOpacity(0.1),
-                    backgroundImage: driver.avatarUrl != null ? NetworkImage(driver.avatarUrl!) : null,
-                    child: driver.avatarUrl == null
-                        ? const Icon(Icons.person, size: 40, color: Colors.blueAccent)
-                        : null,
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                        backgroundImage: widget.driver.avatarUrl != null
+                            ? NetworkImage(widget.driver.avatarUrl!)
+                            : null,
+                        child: widget.driver.avatarUrl == null
+                            ? const Icon(Icons.person, size: 40, color: Colors.blueAccent)
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: isOnline ? Colors.green : Colors.grey,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 20),
                   Expanded(
@@ -52,36 +142,74 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          driver.fullName,
+                          widget.driver.fullName,
                           style: GoogleFonts.outfit(
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
                         Text(
-                          driver.email,
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                          widget.driver.email,
+                          style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.green.withOpacity(0.5)),
-                          ),
-                          child: const Text(
-                            'ACTIVO',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.green.withOpacity(0.5)),
+                              ),
+                              child: const Text(
+                                'ACTIVO',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isOnline
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isOnline
+                                      ? Colors.green.withOpacity(0.5)
+                                      : Colors.grey.withOpacity(0.4),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: isOnline ? Colors.green : Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    isOnline ? 'En línea' : 'Desconectado',
+                                    style: TextStyle(
+                                      color: isOnline ? Colors.green : Colors.grey,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -91,22 +219,22 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Contact Info
+            // ── Contact Info ──
             _buildSection(
               context,
               'INFORMACIÓN PERSONAL',
               {
-                'Teléfono': driver.phoneNumber ?? 'No registrado',
-                'Ciudad': driver.city ?? 'No registrada',
-                'SSN (Últimos 4)': driver.ssnLast4 ?? 'N/A',
-                'Referido por': driver.referredById ?? 'Ninguno',
-                'Es Líder': driver.isLeader ? 'SÍ' : 'NO',
+                'Teléfono': widget.driver.phoneNumber ?? 'No registrado',
+                'Ciudad': widget.driver.city ?? 'No registrada',
+                'SSN (Últimos 4)': widget.driver.ssnLast4 ?? 'N/A',
+                'Referido por': widget.driver.referredById ?? 'Ninguno',
+                'Es Líder': widget.driver.isLeader ? 'SÍ' : 'NO',
               },
               Icons.person_pin,
             ),
             const SizedBox(height: 24),
 
-            // Vehicle Info
+            // ── Vehicle Info ──
             driverDataAsync.when(
               data: (data) => data == null
                   ? const SizedBox.shrink()
@@ -128,11 +256,180 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Documents
+            // ── Documents ──
             _buildDocumentsSection(context, driverDataAsync, verificationAsync),
             const SizedBox(height: 24),
 
-            // Trips placeholder
+            // ── Messaging Section ──
+            PremiumGlassContainer(
+              padding: const EdgeInsets.all(24),
+              color: Colors.white,
+              opacity: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.chat_bubble_outline, color: Colors.blueAccent, size: 22),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Mensajes al Conductor',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (!isOnline)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.offline_bolt_outlined, size: 12, color: Colors.orange),
+                              SizedBox(width: 4),
+                              Text(
+                                'Verá al conectarse',
+                                style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+
+                  // Message history
+                  messagesAsync.when(
+                    data: (messages) {
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Column(
+                              children: [
+                                Icon(Icons.chat_outlined, size: 40, color: Colors.grey[300]),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Sin mensajes aún',
+                                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: messages.map((msg) {
+                          final text = msg['text'] as String? ?? '';
+                          final ts = msg['created_at'] as Timestamp?;
+                          final date = ts != null
+                              ? '${ts.toDate().day}/${ts.toDate().month} ${ts.toDate().hour}:${ts.toDate().minute.toString().padLeft(2, '0')}'
+                              : '';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.admin_panel_settings, size: 16, color: Colors.blueAccent),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(text, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+                                      const SizedBox(height: 4),
+                                      Text(date, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Text('Error: $e'),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Send message field
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          maxLines: 3,
+                          minLines: 1,
+                          decoration: InputDecoration(
+                            hintText: isOnline
+                                ? 'Escribe un mensaje al conductor...'
+                                : 'El conductor está desconectado. Igualmente puedes enviar un mensaje.',
+                            hintStyle: const TextStyle(fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[200]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.blueAccent),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _sendingMessage
+                              ? null
+                              : () => _sendMessage(_messageController.text),
+                          icon: _sendingMessage
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded, size: 18),
+                          label: const Text('Enviar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Trip History ──
             PremiumGlassContainer(
               padding: const EdgeInsets.all(24),
               color: Colors.white,
@@ -272,9 +569,9 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
                           if (v.dniFrontPhotoUrl != null) _buildDocThumb(context, 'DNI Frontal', v.dniFrontPhotoUrl!),
                           if (v.dniBackPhotoUrl != null) _buildDocThumb(context, 'DNI Trasero', v.dniBackPhotoUrl!),
                           if (v.licensePhotoUrl != null) _buildDocThumb(context, 'Licencia (F)', v.licensePhotoUrl!),
-                          if (v.licenseBackPhotoUrl != null) _buildDocThumb(context, 'Licencia (P)', v.licenseBackPhotoUrl!),
                           if (v.registrationPhotoUrl != null) _buildDocThumb(context, 'T. Propiedad', v.registrationPhotoUrl!),
                           if (v.vehiclePhotoUrl != null) _buildDocThumb(context, 'Vehículo', v.vehiclePhotoUrl!),
+                          if (v.insurancePhotoUrl != null) _buildDocThumb(context, 'Seguro', v.insurancePhotoUrl!),
                         ],
                       ),
                     ],
@@ -312,16 +609,32 @@ class ActiveDriverProfileScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => Dialog.fullscreen(
-        child: Column(
+        backgroundColor: Colors.black,
+        child: Stack(
           children: [
-            AppBar(
-              title: Text(title),
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
+            Center(child: InteractiveViewer(child: Image.network(url))),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: SafeArea(
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                ),
               ),
             ),
-            Expanded(child: InteractiveViewer(child: Image.network(url))),
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ],
         ),
       ),

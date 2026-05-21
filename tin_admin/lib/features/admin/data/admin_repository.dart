@@ -3,31 +3,30 @@ import 'package:tin_admin/features/profile/domain/models/profiles.dart';
 import 'package:tin_admin/features/trips/domain/models/trip_model.dart';
 import 'package:tin_admin/features/admin/domain/models/admin_settings.dart';
 
-
 class AdminRepository {
   final FirebaseFirestore _firestore;
 
   AdminRepository(this._firestore);
 
-  // Fetch all profiles
-  Future<List<AppUser>> fetchAllProfiles() async {
-    final query = await _firestore
+  // Stream all profiles for real-time updates
+  Stream<List<AppUser>> streamAllProfiles() {
+    return _firestore
         .collection('profiles')
         .orderBy('full_name')
-        .get();
-    return query.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id; // Inject document ID
-      return AppUser.fromJson(data);
-    }).toList();
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id; // Inject document ID
+            return AppUser.fromJson(data);
+          }).toList(),
+        );
   }
 
   // Fetch driver data
   Future<DriverProfile?> getDriverData(String userId) async {
-    print('[DEBUG] AdminRepo: Fetching driver_data for $userId');
     final doc = await _firestore.collection('driver_data').doc(userId).get();
 
-    print('[DEBUG] AdminRepo: driver_data exists: ${doc.exists}');
     if (!doc.exists) return null;
 
     final data = doc.data()!;
@@ -37,13 +36,10 @@ class AdminRepository {
 
   // Fetch driver verification docs
   Future<DriverVerification?> getDriverVerification(String userId) async {
-    print('[DEBUG] AdminRepo: Fetching driver_verifications for $userId');
     final doc = await _firestore
         .collection('driver_verifications')
         .doc(userId)
         .get();
-
-    print('[DEBUG] AdminRepo: driver_verifications exists: ${doc.exists}');
     if (!doc.exists) return null;
 
     final data = doc.data()!;
@@ -57,30 +53,72 @@ class AdminRepository {
     DriverStatus status, {
     String? rejectionReason,
     List<VehicleType>? activeServices,
+    Map<String, String>? rejectedPhotos,
   }) async {
     final batch = _firestore.batch();
 
-    // 1. Update profile status and is_driver flag
     final Map<String, dynamic> profileUpdates = {'driver_status': status.name};
     if (status == DriverStatus.active) {
       profileUpdates['is_driver'] = true;
+    } else if (status == DriverStatus.rejected) {
+      profileUpdates['has_been_rejected'] = true;
     }
     batch.update(_firestore.collection('profiles').doc(userId), profileUpdates);
 
-    // 2. Update active services in driver_data if provided
+    // 2. Update active services or rejection reason in driver_data
+    final Map<String, dynamic> driverDataUpdates = {};
     if (activeServices != null && activeServices.isNotEmpty) {
-      batch.update(_firestore.collection('driver_data').doc(userId), {
-        'active_services': activeServices.map((e) => e.name).toList(),
-      });
+      driverDataUpdates['active_services'] = activeServices
+          .map((e) => e.name)
+          .toList();
+    }
+    if (status == DriverStatus.rejected && rejectionReason != null) {
+      driverDataUpdates['rejection_reason'] = rejectionReason;
+    }
+    if (status == DriverStatus.rejected && rejectedPhotos != null) {
+      driverDataUpdates['rejected_photos'] = rejectedPhotos;
+    }
+    if (driverDataUpdates.isNotEmpty) {
+      batch.update(
+        _firestore.collection('driver_data').doc(userId),
+        driverDataUpdates,
+      );
     }
 
     // 2. Sync with driver_verifications table using set(merge:true) to be safe
     final verifRef = _firestore.collection('driver_verifications').doc(userId);
-    batch.set(verifRef, {
+    final verifUpdates = <String, dynamic>{
       'status': status.name,
       'rejection_reason': rejectionReason,
       'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (status == DriverStatus.rejected && rejectedPhotos != null) {
+      verifUpdates['rejected_photos'] = rejectedPhotos;
+    }
+    batch.set(verifRef, verifUpdates, SetOptions(merge: true));
+
+    // 3. Send Push Notification if approved or rejected
+    if (status == DriverStatus.active) {
+      final notifRef = _firestore.collection('notification_jobs').doc();
+      batch.set(notifRef, {
+        'title': '¡Cuenta Aprobada!',
+        'body':
+            'Felicidades, tu cuenta ha sido aprobada. ¡Ya puedes empezar a conducir!',
+        'target': userId,
+        'created_at': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+    } else if (status == DriverStatus.rejected) {
+      final notifRef = _firestore.collection('notification_jobs').doc();
+      batch.set(notifRef, {
+        'title': 'Actualización de Documentos',
+        'body':
+            'Hemos revisado tus documentos. Por favor, revisa la app para corregir los errores.',
+        'target': userId,
+        'created_at': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+    }
 
     await batch.commit();
   }
@@ -100,6 +138,10 @@ class AdminRepository {
         );
   }
 
+  // Delete a trip
+  Future<void> deleteTrip(String tripId) async {
+    await _firestore.collection('trips').doc(tripId).delete();
+  }
 
   // Stream all completed and cancelled trips globally
   Stream<List<Trip>> streamTripHistory() {
@@ -116,10 +158,12 @@ class AdminRepository {
         );
   }
 
-
   // Fetch admin settings
   Future<AdminSettings> fetchAdminSettings() async {
-    final doc = await _firestore.collection('admin_settings').doc('pricing').get();
+    final doc = await _firestore
+        .collection('admin_settings')
+        .doc('pricing')
+        .get();
     if (!doc.exists) {
       throw Exception('Admin settings document not found');
     }
@@ -137,9 +181,9 @@ class AdminRepository {
 
   // Update admin settings
   Future<void> updateAdminSettings(AdminSettings settings) async {
-    await _firestore.collection('admin_settings').doc('pricing').set(
-          settings.toJson(),
-          SetOptions(merge: true),
-        );
+    await _firestore
+        .collection('admin_settings')
+        .doc('pricing')
+        .set(settings.toJson(), SetOptions(merge: true));
   }
 }

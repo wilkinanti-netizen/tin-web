@@ -162,9 +162,14 @@ class _DriverDocumentUploadScreenState
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // 3. Update main profile status
+      // 3. Update main profile status + sync avatar
       final profileRef = FirebaseFirestore.instance.collection('profiles').doc(userId);
-      batch.update(profileRef, {'driver_status': 'pending'});
+      final faceUrl = _uploadedUrls[DriverDocumentType.profilePhoto];
+      batch.update(profileRef, {
+        'driver_status': 'pending',
+        // Sync face photo as profile avatar (same photo for driver & passenger)
+        if (faceUrl != null) 'avatar_url': faceUrl,
+      });
 
       await batch.commit();
 

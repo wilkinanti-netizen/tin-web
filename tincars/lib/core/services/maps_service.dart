@@ -16,23 +16,22 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$input&key=$_apiKey&sessiontoken=$sessionToken', // Performance: Remove country restriction for US/Global support
     );
 
-    print("[MapsService] getAutocompleteSuggestions URL: $url");
     try {
       final response = await http.get(url);
-      print("[MapsService] getAutocompleteSuggestions Status: ${response.statusCode}");
-      print("[MapsService] getAutocompleteSuggestions Body: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'OK') {
           return List<Map<String, dynamic>>.from(data['predictions'] ?? []);
         } else {
-          throw Exception(data['error_message'] ?? 'Failed to load suggestions: ${data['status']}');
+          throw Exception(
+            data['error_message'] ??
+                'Failed to load suggestions: ${data['status']}',
+          );
         }
       } else {
         throw Exception('Failed to load suggestions: ${response.statusCode}');
       }
     } catch (e) {
-      print("[MapsService] Exception in getAutocompleteSuggestions: $e");
       rethrow;
     }
   }
@@ -42,24 +41,23 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&fields=geometry&key=$_apiKey',
     );
 
-    print("[MapsService] getPlaceDetails URL: $url");
     try {
       final response = await http.get(url);
-      print("[MapsService] getPlaceDetails Status: ${response.statusCode}");
-      print("[MapsService] getPlaceDetails Body: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'OK') {
           final location = data['result']['geometry']['location'];
           return LatLng(location['lat'], location['lng']);
         } else {
-          throw Exception(data['error_message'] ?? 'Failed to load place details: ${data['status']}');
+          throw Exception(
+            data['error_message'] ??
+                'Failed to load place details: ${data['status']}',
+          );
         }
       } else {
         throw Exception('Failed to load place details: ${response.statusCode}');
       }
     } catch (e) {
-      print("[MapsService] Exception in getPlaceDetails: $e");
       rethrow;
     }
   }
@@ -72,19 +70,14 @@ class MapsService {
     String waypointsStr = "";
     if (waypoints.isNotEmpty) {
       waypointsStr =
-          "&waypoints=" +
-          waypoints.map((w) => "${w.latitude},${w.longitude}").join('|');
+          "&waypoints=${waypoints.map((w) => "${w.latitude},${w.longitude}").join('|')}";
     }
 
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}$waypointsStr&key=$_apiKey',
     );
-
-    print("[MapsService] getDirections URL: $url");
     try {
       final response = await http.get(url);
-      print("[MapsService] getDirections Status: ${response.statusCode}");
-      print("[MapsService] getDirections Body: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
@@ -126,12 +119,16 @@ class MapsService {
             );
           }
         } else {
-          throw Exception(data['error_message'] ?? 'Error al conectar con Google Maps: ${data['status']}');
+          throw Exception(
+            data['error_message'] ??
+                'Error al conectar con Google Maps: ${data['status']}',
+          );
         }
       }
-      throw Exception('Error al conectar con Google Maps: ${response.statusCode}');
+      throw Exception(
+        'Error al conectar con Google Maps: ${response.statusCode}',
+      );
     } catch (e) {
-      print("[MapsService] Exception in getDirections: $e");
       rethrow;
     }
   }
@@ -141,11 +138,8 @@ class MapsService {
       'https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=$_apiKey',
     );
 
-    print("[MapsService] getAddressFromLatLng URL: $url");
     try {
       final response = await http.get(url);
-      print("[MapsService] getAddressFromLatLng Status: ${response.statusCode}");
-      print("[MapsService] getAddressFromLatLng Body: ${response.body}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'OK') {
@@ -153,7 +147,9 @@ class MapsService {
             return data['results'][0]['formatted_address'];
           }
         } else {
-          print("[MapsService] getAddressFromLatLng API error: ${data['error_message'] ?? data['status']}");
+          print(
+            "[MapsService] getAddressFromLatLng API error: ${data['error_message'] ?? data['status']}",
+          );
         }
       }
       return "Dirección desconocida";

@@ -11,6 +11,7 @@ import 'package:tincars/features/profile/presentation/controllers/profile_contro
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
 
 import 'package:tincars/features/profile/data/profile_repository.dart';
+import 'package:tincars/core/services/offline_queue_service.dart';
 
 class TripController extends AsyncNotifier<void> {
   late TripRepository _repository;
@@ -100,11 +101,26 @@ class TripController extends AsyncNotifier<void> {
     if (currentTrip != null && currentTrip.status == status) return;
 
     try {
-      await _repository.updateTripStatus(
-        tripId,
-        statusToDbString(status),
-        cancellationReason: cancellationReason,
+      // Use offline queue for critical status updates
+      final success = await OfflineQueueService.instance.executeOrQueue(
+        collection: 'trips',
+        docId: tripId,
+        data: {
+          'status': statusToDbString(status),
+          if (cancellationReason != null)
+            'cancellation_reason': cancellationReason,
+        },
+        type: 'update',
       );
+
+      // If we managed to update online, also do the full server logic
+      if (success) {
+        await _repository.updateTripStatus(
+          tripId,
+          statusToDbString(status),
+          cancellationReason: cancellationReason,
+        );
+      }
 
       if (status == TripStatus.completed) {
         final trip = await _repository.getTripById(tripId);

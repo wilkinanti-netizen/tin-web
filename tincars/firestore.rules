@@ -1,8 +1,101 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.is_admin == true;
+    }
+
+    // 1. Perfiles de Usuario
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 2. Datos y Verificaciones de Conductores (Contienen documentos sensibles)
+    match /driver_data/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /driver_verifications/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // 3. Viajes (Trips) y Calificaciones
+    match /trips/{tripId} {
+      allow read, write: if isAuthenticated(); 
+    }
+    
+    match /ratings/{ratingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // 4. Mensajería
+    match /messages/{messageId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /driver_messages/{messageId} {
+      allow read: if isAuthenticated() && (resource.data.driver_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.driver_id == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // 5. Métodos de Pago y Cobro (Datos financieros muy sensibles)
+    match /payment_methods/{methodId} {
+      allow read, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+    }
+
+    match /payout_methods/{methodId} {
+      allow read, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+    }
+    
+    match /payout_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+    // 6. Configuración Administrativa y Notificaciones
+    match /admin_settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /notification_jobs/{jobId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 7. Contactos de Emergencia
+    match /emergency_contacts/{contactId} {
+      allow read, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // 8. Soporte y Ayuda
+    match /support_tickets/{ticketId} {
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // 8. Bloquear acceso a cualquier otra colección por defecto para evitar fugas de datos
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

@@ -19,6 +19,8 @@ import 'package:tincars/core/widgets/premium_shimmer.dart';
 import 'package:tincars/features/profile/presentation/screens/cards_screen.dart';
 import 'package:tincars/features/trips/domain/services/stripe_service.dart';
 import 'package:tincars/core/utils/marker_utils.dart';
+import 'package:tincars/core/services/realtime_location_service.dart';
+import 'package:tincars/core/services/surge_pricing_service.dart';
 
 class VehicleSelectionScreen extends ConsumerStatefulWidget {
   final LatLng pickupLocation;
@@ -297,9 +299,42 @@ class _VehicleSelectionScreenState extends ConsumerState<VehicleSelectionScreen>
         paymentStatus: paymentStatus,
       );
 
+      // Record demand in RTDB for heatmap visualization
+      RealtimeLocationService.instance.recordTripDemand(
+        widget.pickupLocation.latitude,
+        widget.pickupLocation.longitude,
+      );
+
+      // Apply surge pricing if applicable
+      final surgeMultiplier = await SurgePricingService.instance
+          .getSurgeMultiplier(widget.pickupLocation);
+      final surgedPrice = finalTrip.price * surgeMultiplier;
+
+      final tripWithSurge = Trip(
+        id: finalTrip.id,
+        passengerId: finalTrip.passengerId,
+        pickupLocation: finalTrip.pickupLocation,
+        dropoffLocation: finalTrip.dropoffLocation,
+        pickupAddress: finalTrip.pickupAddress,
+        dropoffAddress: finalTrip.dropoffAddress,
+        intermediateStops: finalTrip.intermediateStops,
+        distance: finalTrip.distance,
+        price: double.parse(surgedPrice.toStringAsFixed(2)),
+        status: finalTrip.status,
+        createdAt: finalTrip.createdAt,
+        vehicleType: finalTrip.vehicleType,
+        paymentMethod: finalTrip.paymentMethod,
+        comment: finalTrip.comment,
+        hasExtraLuggage: finalTrip.hasExtraLuggage,
+        hasPets: finalTrip.hasPets,
+        passengerEmoji: finalTrip.passengerEmoji,
+        paymentIntentId: finalTrip.paymentIntentId,
+        paymentStatus: finalTrip.paymentStatus,
+      );
+
       // Trigger the request
-      await ref.read(tripControllerProvider.notifier).createTrip(finalTrip);
-      AppLogger.log('VehicleSelectionScreen: Llamada a createTrip finalizada');
+      await ref.read(tripControllerProvider.notifier).createTrip(tripWithSurge);
+      AppLogger.log('VehicleSelectionScreen: Llamada a createTrip finalizada (surge: x${surgeMultiplier.toStringAsFixed(2)})');
 
       // Check for errors in the state after creation
       final controllerState = ref.read(tripControllerProvider);

@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
+import 'package:tincars/core/services/realtime_location_service.dart';
 
 class DriverTripManagementScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -357,6 +358,7 @@ class _DriverTripManagementScreenState
             }
 
             if (lastLoc == null || distanceMoved > 10) {
+              // Write to Firestore (for persistence/queries)
               ref
                   .read(tripControllerProvider.notifier)
                   .updateLocation(
@@ -365,6 +367,13 @@ class _DriverTripManagementScreenState
                     position.longitude,
                     heading: heading,
                   );
+              // Write to RTDB (cheaper real-time updates)
+              RealtimeLocationService.instance.updateTripDriverLocation(
+                widget.tripId,
+                position.latitude,
+                position.longitude,
+                heading: heading,
+              );
             }
 
             if (mounted) {
@@ -489,6 +498,55 @@ class _DriverTripManagementScreenState
         await launchUrlString(url);
       }
     }
+  }
+
+  void _handleSOS() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'SOS / EMERGENCIA',
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('¿Deseas contactar a los servicios de emergencia?'),
+            SizedBox(height: 12),
+            Text(
+              'Esta acción iniciará una llamada directa al número de emergencias local (911) para garantizar tu seguridad.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final url = 'tel:911';
+              if (await canLaunchUrlString(url)) {
+                await launchUrlString(url);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('LLAMAR 911'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadPassengerEmojiMarker(String emoji) async {
@@ -1016,6 +1074,28 @@ class _DriverTripManagementScreenState
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (_lastDirections != null &&
+                    _lastDirections!['duration_text'] != null) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 11,
+                        color: Colors.blueAccent.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${_lastDirections!['duration_text']} (${_lastDirections!['distance_text']})',
+                        style: TextStyle(
+                          color: Colors.blueAccent.shade700,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -1351,13 +1431,22 @@ class _DriverTripManagementScreenState
             },
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
           child: _buildSecondaryAction(
             icon: Icons.call_rounded,
             label: 'LLAMAR',
             color: Colors.green[700]!,
             onTap: () => _makePhoneCall(passengerAsync.value?.phoneNumber),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildSecondaryAction(
+            icon: Icons.security_rounded,
+            label: 'SOS',
+            color: Colors.red[700]!,
+            onTap: () => _handleSOS(),
           ),
         ),
       ],

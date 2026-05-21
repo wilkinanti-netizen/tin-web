@@ -40,7 +40,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   Timer? _locationTimer;
   Timer? _waitTimer;
   int _elapsedSeconds = 0;
-  int _waitSecondsRemaining = 60; 
+  int _waitSecondsRemaining = 60;
   double _waitFeeAccumulated = 0.0;
   int _extraWaitSeconds = 0;
   TripStatus? _lastStatus;
@@ -233,18 +233,18 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
 
   final ValueNotifier<int> _timeNotifier = ValueNotifier<int>(0);
 
-  int _getWaitTimeForCategory(String type) {
-    return ref.read(pricingServiceProvider).getFreeWaitMinutes(type) * 60;
-  }
-
   void _startWaitTimer(String? vehicleType) {
     _waitTimer?.cancel();
     _waitFeeAccumulated = 0.0;
     _extraWaitSeconds = 0;
-    
+
     // Usamos el valor del service que ahora es 1 min por defecto
-    _waitSecondsRemaining = ref.read(pricingServiceProvider).getFreeWaitMinutes(vehicleType ?? 'essentials') * 60;
-    
+    _waitSecondsRemaining =
+        ref
+            .read(pricingServiceProvider)
+            .getFreeWaitMinutes(vehicleType ?? 'essentials') *
+        60;
+
     _waitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_waitSecondsRemaining > 0) {
         setState(() => _waitSecondsRemaining--);
@@ -253,7 +253,8 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         setState(() {
           _extraWaitSeconds++;
           final pricing = ref.read(pricingServiceProvider);
-          final freeSecs = pricing.getFreeWaitMinutes(vehicleType ?? 'essentials') * 60;
+          final freeSecs =
+              pricing.getFreeWaitMinutes(vehicleType ?? 'essentials') * 60;
           _waitFeeAccumulated = pricing.calculateWaitFee(
             vehicleType ?? 'essentials',
             freeSecs + _extraWaitSeconds,
@@ -530,7 +531,8 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
           );
         }
 
-        final double newTotalPrice = ref.read(pricingServiceProvider)
+        final double newTotalPrice = ref
+            .read(pricingServiceProvider)
             .calculateModifiedTripPrice(
               originalPrice: trip.price,
               originalDistance: originalDistance,
@@ -581,33 +583,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
         );
       }
     }
-  }
-
-  void _showDriverPhoto(BuildContext context, String url) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.network(url, fit: BoxFit.cover),
-            ),
-            const SizedBox(height: 16),
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(
-                Icons.close_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -694,10 +669,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       body: tripAsync.when(
         skipLoadingOnRefresh: true, // Crucial for preventing flickers
         data: (trip) {
-          if (trip == null) {
-            return const Center(child: Text('Viaje no encontrado'));
-          }
-
           // Check if icons need to be reloaded (if stops count or vehicle type changed)
           if (_stopIcons.length != trip.intermediateStops.length ||
               _lastVehicleType != trip.vehicleType) {
@@ -767,17 +738,15 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               _lastStatus != TripStatus.inProgress) {
             _lastStatus = TripStatus.inProgress;
             _waitTimer?.cancel();
-            
+
             // Si hubo cargos por espera, actualizamos el precio del viaje en DB
             if (_waitFeeAccumulated > 0) {
               final newPrice = trip.price + _waitFeeAccumulated;
               final waitFee = _waitFeeAccumulated;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                ref.read(tripControllerProvider.notifier).updatePrice(
-                  trip.id, 
-                  newPrice,
-                  waitFee: waitFee,
-                );
+                ref
+                    .read(tripControllerProvider.notifier)
+                    .updatePrice(trip.id, newPrice, waitFee: waitFee);
               });
             }
 
@@ -856,7 +825,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   ) {
     final bool isToDropoff = trip.status == TripStatus.inProgress;
     final LatLng driverLoc = trip.driverLocation ?? trip.pickupLocation;
-    final LatLng start = trip.pickupLocation;
     final LatLng end = trip.dropoffLocation;
 
     // Cargar emoji marker si cambió o no existe
@@ -1018,14 +986,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     );
   }
 
-  Future<void> _makePhoneCall(String? phoneNumber) async {
-    if (phoneNumber == null) return;
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    }
-  }
-
   Widget _buildTopStatusHUD(
     Trip trip,
     AppLocalizations l10n,
@@ -1034,7 +994,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     try {
       if (trip.status == TripStatus.arrived) {
         final bool isExtraWait = _waitSecondsRemaining <= 0;
-        
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
@@ -1042,7 +1002,9 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: (isExtraWait ? Colors.orange : Colors.green).withOpacity(0.35),
+                color: (isExtraWait ? Colors.orange : Colors.green).withOpacity(
+                  0.35,
+                ),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
@@ -1052,9 +1014,11 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isExtraWait ? Icons.warning_amber_rounded : Icons.timer_outlined, 
-                color: Colors.white, 
-                size: 20
+                isExtraWait
+                    ? Icons.warning_amber_rounded
+                    : Icons.timer_outlined,
+                color: Colors.white,
+                size: 20,
               ),
               const SizedBox(width: 12),
               Column(
@@ -1062,8 +1026,8 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isExtraWait 
-                        ? 'TIEMPO DE ESPERA AGOTADO' 
+                    isExtraWait
+                        ? 'TIEMPO DE ESPERA AGOTADO'
                         : 'EL CONDUCTOR TE ESTÁ ESPERANDO',
                     style: const TextStyle(
                       color: Colors.white,
@@ -1140,7 +1104,18 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                   if (trip.status == TripStatus.accepted &&
                       driverEtaMinutes != null)
                     Text(
-                      'LLEGA EN ${driverEtaMinutes.round()} MIN'.toUpperCase(),
+                      'LLEGA EN ${driverEtaMinutes.round()} MIN (${_driverDirections?['distance_text'] ?? ""})'.toUpperCase(),
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  if (trip.status == TripStatus.inProgress &&
+                      _driverDirections?['duration_text'] != null)
+                    Text(
+                      'LLEGA EN ${_driverDirections!['duration_text']} (${_driverDirections!['distance_text']})'.toUpperCase(),
                       style: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.w900,
@@ -1182,7 +1157,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
           ],
         ),
       );
-    } catch (e, s) {
+    } catch (e) {
       return const SizedBox.shrink();
     }
   }
@@ -1431,10 +1406,12 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
                 ],
               ),
               Text(
-                NumberFormat.currency(
-                  symbol: r'$',
-                  decimalDigits: 2,
-                ).format(trip.price + (trip.status == TripStatus.arrived ? _waitFeeAccumulated : 0.0)),
+                NumberFormat.currency(symbol: r'$', decimalDigits: 2).format(
+                  trip.price +
+                      (trip.status == TripStatus.arrived
+                          ? _waitFeeAccumulated
+                          : 0.0),
+                ),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -1453,72 +1430,24 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               children: [
                 const Text(
                   "Cargo por espera",
-                  style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   "+\$${_waitFeeAccumulated.toStringAsFixed(2)}",
-                  style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildPulseIndicator(Color color) {
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color.withOpacity(_pulseAnimation.value),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.4 * _pulseAnimation.value),
-                blurRadius: 4,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDriverAvatar(dynamic driver, TripStatus status) {
-    return GestureDetector(
-      onTap: () {
-        if (driver?.avatarUrl != null) {
-          _showDriverPhoto(context, driver.avatarUrl!);
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: _getStatusColor(status).withOpacity(0.35),
-            width: 2.5,
-          ),
-        ),
-        child: CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.grey.shade100,
-          backgroundImage: driver?.avatarUrl != null
-              ? NetworkImage(driver.avatarUrl!)
-              : null,
-          child: driver?.avatarUrl == null
-              ? const Icon(
-                  Icons.person_rounded,
-                  color: Colors.black45,
-                  size: 32,
-                )
-              : null,
-        ),
       ),
     );
   }
@@ -1754,16 +1683,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
     );
   }
 
-  Widget _buildStatusBadge(TripStatus status, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: _getStatusColor(status).withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-    );
-  }
-
   Widget _buildRouteTimeline(Trip trip) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1877,25 +1796,6 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       default:
         return 'Buscando conductor...';
     }
-  }
-
-  String _getStatusLabel(TripStatus status, AppLocalizations l10n) {
-    switch (status) {
-      case TripStatus.accepted:
-        return 'En camino';
-      case TripStatus.arrived:
-        return 'El conductor llegó';
-      case TripStatus.inProgress:
-        return 'En viaje';
-      case TripStatus.cancelled:
-        return 'Cancelado';
-      default:
-        return 'Estado desconocido';
-    }
-  }
-
-  IconData _getPaymentIcon() {
-    return Icons.credit_card_rounded;
   }
 }
 

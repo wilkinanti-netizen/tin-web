@@ -16,6 +16,7 @@ class AppUser {
   final String? city;
   final String? ssnLast4;
   final String? referredById;
+  final bool hasBeenRejected;
 
   AppUser({
     required this.id,
@@ -29,6 +30,7 @@ class AppUser {
     this.city,
     this.ssnLast4,
     this.referredById,
+    this.hasBeenRejected = false,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
@@ -46,6 +48,7 @@ class AppUser {
       city: json['city'],
       ssnLast4: json['ssn_last_4'],
       referredById: json['referred_by_id'],
+      hasBeenRejected: json['has_been_rejected'] ?? false,
     );
   }
 
@@ -126,26 +129,28 @@ class DriverVerification {
   final String? dniNumber;
   final String? facePhotoUrl;
   final String? licensePhotoUrl;
-  final String? licenseBackPhotoUrl;
   final String? dniFrontPhotoUrl;
   final String? dniBackPhotoUrl;
   final String? registrationPhotoUrl;
   final String? vehiclePhotoUrl;
+  final String? insurancePhotoUrl;
   final String status;
   final String? rejectionReason;
+  final Map<String, String>? rejectedPhotos;
 
   DriverVerification({
     required this.driverId,
     this.dniNumber,
     this.facePhotoUrl,
     this.licensePhotoUrl,
-    this.licenseBackPhotoUrl,
     this.dniFrontPhotoUrl,
     this.dniBackPhotoUrl,
     this.registrationPhotoUrl,
     this.vehiclePhotoUrl,
+    this.insurancePhotoUrl,
     required this.status,
     this.rejectionReason,
+    this.rejectedPhotos,
   });
 
   factory DriverVerification.fromJson(Map<String, dynamic> json) {
@@ -154,13 +159,16 @@ class DriverVerification {
       dniNumber: json['dni_number'],
       facePhotoUrl: json['face_photo_url'],
       licensePhotoUrl: json['license_photo_url'],
-      licenseBackPhotoUrl: json['license_back_photo_url'],
       dniFrontPhotoUrl: json['dni_front_photo_url'],
       dniBackPhotoUrl: json['dni_back_photo_url'],
       registrationPhotoUrl: json['registration_photo_url'],
       vehiclePhotoUrl: json['vehicle_photo_url'],
+      insurancePhotoUrl: json['insurance_photo_url'],
       status: json['status'] ?? 'pending',
       rejectionReason: json['rejection_reason'],
+      rejectedPhotos: json['rejected_photos'] != null
+          ? Map<String, String>.from(json['rejected_photos'] as Map)
+          : null,
     );
   }
 }

@@ -510,7 +510,7 @@ exports.onnotificationjobcreated = onDocumentCreated("notification_jobs/{jobId}"
 
             if (!token) return;
 
-            if (target === 'all' || (target === 'drivers' && isDriver) || (target === 'passengers' && !isDriver)) {
+            if (target === 'all' || (target === 'drivers' && isDriver) || (target === 'passengers' && !isDriver) || target === doc.id) {
                 tokens.push(token);
                 userEmails.push(data.email || doc.id);
             }

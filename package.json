@@ -1,0 +1,23 @@
+{
+  "name": "tin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "servidor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wilkinanti-netizen/tin-web.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wilkinanti-netizen/tin-web/issues"
+  },
+  "homepage": "https://github.com/wilkinanti-netizen/tin-web#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

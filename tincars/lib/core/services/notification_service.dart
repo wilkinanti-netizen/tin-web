@@ -25,6 +25,14 @@ class NotificationService {
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         AppLogger.log('NotificationService: User granted FCM permission');
       }
+
+      if (Platform.isIOS) {
+        await _fcm.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
     }
 
     // Initialize Local Notifications

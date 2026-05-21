@@ -76,18 +76,18 @@ class InvoicePdfHelper {
                     style: pw.TextStyle(
                         fontSize: 12, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 12),
-                _buildPdfReceiptRow('Tarifa del viaje', '\$${total.toStringAsFixed(0)}'),
+                _buildPdfReceiptRow('Tarifa del viaje', '\$${total.toStringAsFixed(2)}'),
                 if (trip.tipAmount != null && trip.tipAmount! > 0)
                   _buildPdfReceiptRow(
-                      'Propina', '\$${trip.tipAmount!.toStringAsFixed(0)}'),
+                      'Propina', '\$${trip.tipAmount!.toStringAsFixed(2)}'),
                 pw.SizedBox(height: 10),
                 pw.Divider(borderStyle: pw.BorderStyle.dashed),
                 pw.SizedBox(height: 10),
                 _buildPdfReceiptRow(
-                    'Ganancia Conductor (80%)', '\$${driverEarning.toStringAsFixed(0)}',
+                    'Ganancia Conductor (80%)', '\$${driverEarning.toStringAsFixed(2)}',
                     isBold: true),
                 _buildPdfReceiptRow(
-                    'Tasa de Servicio (20%)', '\$${appFee.toStringAsFixed(0)}'),
+                    'Tasa de Servicio (20%)', '\$${appFee.toStringAsFixed(2)}'),
 
                 pw.SizedBox(height: 40),
                 pw.Divider(),

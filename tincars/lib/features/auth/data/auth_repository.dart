@@ -26,7 +26,18 @@ abstract class AuthRepository {
     String? vehicleColor,
     String? vehicleType,
     bool? backgroundCheckConsent,
-    String? licensePath,
+    bool? termsAccepted,
+    String? dniNumber,
+    DateTime? birthDate,
+    String? motivation,
+    int? hoursPerWeek,
+    bool? hasExperience,
+    String? facePath,
+    String? licenseFrontPath,
+    String? dniFrontPath,
+    String? dniBackPath,
+    String? registrationPath,
+    String? vehiclePath,
     String? insurancePath,
     String? referralCode,
   });
@@ -107,7 +118,18 @@ class FirebaseAuthRepository implements AuthRepository {
     String? vehicleColor,
     String? vehicleType,
     bool? backgroundCheckConsent,
-    String? licensePath,
+    bool? termsAccepted,
+    String? dniNumber,
+    DateTime? birthDate,
+    String? motivation,
+    int? hoursPerWeek,
+    bool? hasExperience,
+    String? facePath,
+    String? licenseFrontPath,
+    String? dniFrontPath,
+    String? dniBackPath,
+    String? registrationPath,
+    String? vehiclePath,
     String? insurancePath,
     String? referralCode,
   }) async {
@@ -153,22 +175,30 @@ class FirebaseAuthRepository implements AuthRepository {
         });
 
         if (isDriver) {
-          String? licenseUrl;
+          String? faceUrl;
+          String? licenseFrontUrl;
+          String? dniFrontUrl;
+          String? dniBackUrl;
+          String? registrationUrl;
+          String? vehicleUrl;
           String? insuranceUrl;
 
+          Future<String?> uploadDoc(String? path, String type) async {
+            if (path == null) return null;
+            final file = File(path);
+            final ref = _storage.ref().child('driver_verifications/${user.uid}/${type}_${DateTime.now().millisecondsSinceEpoch}');
+            await ref.putFile(file);
+            return await ref.getDownloadURL();
+          }
+
           try {
-            if (licensePath != null) {
-              final file = File(licensePath);
-              final ref = _storage.ref().child('driver_verifications/${user.uid}/license_${DateTime.now().millisecondsSinceEpoch}');
-              await ref.putFile(file);
-              licenseUrl = await ref.getDownloadURL();
-            }
-            if (insurancePath != null) {
-              final file = File(insurancePath);
-              final ref = _storage.ref().child('driver_verifications/${user.uid}/insurance_${DateTime.now().millisecondsSinceEpoch}');
-              await ref.putFile(file);
-              insuranceUrl = await ref.getDownloadURL();
-            }
+            faceUrl = await uploadDoc(facePath, 'face');
+            licenseFrontUrl = await uploadDoc(licenseFrontPath, 'license_front');
+            dniFrontUrl = await uploadDoc(dniFrontPath, 'dni_front');
+            dniBackUrl = await uploadDoc(dniBackPath, 'dni_back');
+            registrationUrl = await uploadDoc(registrationPath, 'reg');
+            vehicleUrl = await uploadDoc(vehiclePath, 'vehicle');
+            insuranceUrl = await uploadDoc(insurancePath, 'policy');
           } catch (e) {
             AppLogger.log('AuthRepository: Error subiendo documentos: $e');
           }
@@ -176,9 +206,25 @@ class FirebaseAuthRepository implements AuthRepository {
           // Sync with driver_verifications for Admin
           await _firestore.collection('driver_verifications').doc(user.uid).set({
             'driver_id': user.uid,
-            'license_photo_url': licenseUrl,
-            'vehicle_photo_url': insuranceUrl,
+            'dni_number': dniNumber,
+            'birth_date': birthDate != null ? Timestamp.fromDate(birthDate) : null,
+            'face_photo_url': faceUrl,
+            'license_photo_url': licenseFrontUrl,
+            'dni_front_photo_url': dniFrontUrl,
+            'dni_back_photo_url': dniBackUrl,
+            'registration_photo_url': registrationUrl,
+            'vehicle_photo_url': vehicleUrl,
+            'insurance_photo_url': insuranceUrl,
             'status': 'pending',
+            'rejection_reason': null,
+            'driver_motivation': motivation,
+            'hours_per_week': hoursPerWeek,
+            'has_experience': hasExperience ?? false,
+            'ssn': ssnLast4,
+            'background_check_consent': backgroundCheckConsent ?? false,
+            'terms_accepted': termsAccepted ?? false,
+            'terms_accepted_at': FieldValue.serverTimestamp(),
+            'created_at': FieldValue.serverTimestamp(),
             'updated_at': FieldValue.serverTimestamp(),
           });
 
@@ -190,12 +236,13 @@ class FirebaseAuthRepository implements AuthRepository {
             'vehicle_type': vehicleType ?? 'essentials',
             'vehicle_year': vehicleYear,
             'vehicle_color': vehicleColor,
-            'background_check_consent': backgroundCheckConsent ?? false,
-            'doc_license_url': licenseUrl,
+            'is_verified': false,
+            'doc_license_url': licenseFrontUrl,
             'doc_insurance_url': insuranceUrl,
             'total_earnings': 0.0,
             'active_services': [vehicleType ?? 'essentials'],
             'created_at': FieldValue.serverTimestamp(),
+            'updated_at': FieldValue.serverTimestamp(),
           });
         }
 

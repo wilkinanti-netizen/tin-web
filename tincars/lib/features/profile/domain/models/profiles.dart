@@ -133,6 +133,8 @@ class DriverProfile {
   final double? lastLng;
   final double? lastHeading;
   final DateTime? lastLocationUpdate;
+  final String? rejectionReason;
+  final Map<String, String>? rejectedPhotos;
 
   DriverProfile({
     required this.profileId,
@@ -147,6 +149,8 @@ class DriverProfile {
     this.lastLng,
     this.lastHeading,
     this.lastLocationUpdate,
+    this.rejectionReason,
+    this.rejectedPhotos,
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
@@ -180,6 +184,10 @@ class DriverProfile {
           ? (json['last_location_update'] is Timestamp
               ? (json['last_location_update'] as Timestamp).toDate()
               : DateTime.tryParse(json['last_location_update']))
+          : null,
+      rejectionReason: json['rejection_reason'],
+      rejectedPhotos: json['rejected_photos'] != null
+          ? Map<String, String>.from(json['rejected_photos'] as Map)
           : null,
     );
 

@@ -143,7 +143,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                trip.price.toStringAsFixed(0),
+                                trip.price.toStringAsFixed(2),
                                 style: const TextStyle(
                                   fontSize: 56,
                                   fontWeight: FontWeight.w900,
@@ -177,20 +177,20 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                                 children: [
                                   _buildBreakdownRow(
                                     'Tarifa base',
-                                    '\$${(trip.price - (trip.waitFee ?? 0)).toStringAsFixed(0)}',
+                                    '\$${(trip.price - (trip.waitFee ?? 0)).toStringAsFixed(2)}',
                                   ),
                                   if (trip.waitFee != null && trip.waitFee! > 0) ...[
                                     const SizedBox(height: 8),
                                     _buildBreakdownRow(
                                       'Cargo por espera',
-                                      '+\$${trip.waitFee!.toStringAsFixed(0)}',
+                                      '+\$${trip.waitFee!.toStringAsFixed(2)}',
                                       color: Colors.orange,
                                     ),
                                   ],
                                   const SizedBox(height: 8),
                                   _buildBreakdownRow(
                                     'Comisión TinCars (25%)',
-                                    '-\$${(trip.price * 0.25).toStringAsFixed(0)}',
+                                    '-\$${(trip.price * 0.25).toStringAsFixed(2)}',
                                     isNegative: true,
                                   ),
                                   if (trip.tipAmount != null &&
@@ -198,7 +198,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                                     const SizedBox(height: 8),
                                     _buildBreakdownRow(
                                       'Propina extra',
-                                      '+\$${trip.tipAmount!.toStringAsFixed(0)}',
+                                      '+\$${trip.tipAmount!.toStringAsFixed(2)}',
                                       color: Colors.green,
                                     ),
                                   ],
@@ -208,7 +208,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                                   ),
                                   _buildBreakdownRow(
                                     'TU GANANCIA NETA',
-                                    '\$${((trip.price * 0.75) + (trip.tipAmount ?? 0)).toStringAsFixed(0)}',
+                                    '\$${((trip.price * 0.75) + (trip.tipAmount ?? 0)).toStringAsFixed(2)}',
                                     isBold: true,
                                     color: Colors.green,
                                   ),
@@ -228,7 +228,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
                           if (_localTip != null && _localTip! > 0) ...[
                             const SizedBox(height: 8),
                             Text(
-                              '+ \$${_localTip!.toStringAsFixed(0)} PROPINA',
+                              '+ \$${_localTip!.toStringAsFixed(2)} PROPINA',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w900,
@@ -430,7 +430,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
         if (_localTip != null && _localTip! > 0) ...[
           const SizedBox(height: 16),
           Text(
-            'Propina de \$${_localTip!.toStringAsFixed(0)} agregada',
+            'Propina de \$${_localTip!.toStringAsFixed(2)} agregada',
             style: const TextStyle(
               color: Colors.green,
               fontWeight: FontWeight.bold,
@@ -484,7 +484,7 @@ class _TripCompletionScreenState extends ConsumerState<TripCompletionScreen>
             ),
             if (!isCustom)
               Text(
-                '\$${amount.toStringAsFixed(0)}',
+                '\$${amount.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 10,
                   color: isSelected

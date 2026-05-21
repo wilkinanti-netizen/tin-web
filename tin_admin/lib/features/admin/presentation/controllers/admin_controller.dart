@@ -6,13 +6,12 @@ import 'package:tin_admin/features/profile/domain/models/profiles.dart';
 import 'package:tin_admin/features/trips/domain/models/trip_model.dart';
 import 'package:tin_admin/features/admin/domain/models/admin_settings.dart';
 
-
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {
   return AdminRepository(FirebaseFirestore.instance);
 });
 
-final allProfilesProvider = FutureProvider<List<AppUser>>((ref) {
-  return ref.watch(adminRepositoryProvider).fetchAllProfiles();
+final allProfilesProvider = StreamProvider<List<AppUser>>((ref) {
+  return ref.watch(adminRepositoryProvider).streamAllProfiles();
 });
 
 final driverDataProvider = FutureProvider.family<DriverProfile?, String>((
@@ -39,7 +38,6 @@ final adminSettingsProvider = StreamProvider<AdminSettings>((ref) {
   return ref.watch(adminRepositoryProvider).streamAdminSettings();
 });
 
-
 class AdminController extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {
@@ -51,15 +49,19 @@ class AdminController extends AsyncNotifier<void> {
     DriverStatus status, {
     String? rejectionReason,
     List<VehicleType>? activeServices,
+    Map<String, String>? rejectedPhotos,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(adminRepositoryProvider).updateDriverStatus(
-        userId,
-        status,
-        rejectionReason: rejectionReason,
-        activeServices: activeServices,
-      );
+      await ref
+          .read(adminRepositoryProvider)
+          .updateDriverStatus(
+            userId,
+            status,
+            rejectionReason: rejectionReason,
+            activeServices: activeServices,
+            rejectedPhotos: rejectedPhotos,
+          );
     });
   }
 
@@ -67,6 +69,13 @@ class AdminController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref.read(adminRepositoryProvider).updateAdminSettings(settings);
+    });
+  }
+
+  Future<void> deleteTrip(String tripId) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(adminRepositoryProvider).deleteTrip(tripId);
     });
   }
 }

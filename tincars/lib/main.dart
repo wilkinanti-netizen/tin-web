@@ -1,6 +1,7 @@
 import 'package:tincars/core/utils/app_logger.dart';
 import 'package:tincars/core/utils/error_handler.dart';
 import 'package:tincars/core/services/notification_service.dart';
+import 'package:tincars/core/services/offline_queue_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +18,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tincars/core/providers/shared_prefs_provider.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/features/auth/data/auth_repository.dart';
-import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +70,16 @@ class _InitializationWrapperState extends ConsumerState<InitializationWrapper> {
       } catch (e) {
         AppLogger.error(
           'NotificationService init failed (non-fatal)',
+          error: e,
+        );
+      }
+
+      // Initialize offline queue service for connectivity-resilient operations
+      try {
+        await OfflineQueueService.instance.init();
+      } catch (e) {
+        AppLogger.error(
+          'OfflineQueueService init failed (non-fatal)',
           error: e,
         );
       }

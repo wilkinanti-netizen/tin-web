@@ -418,23 +418,23 @@ class _ReceiptModal extends StatelessWidget {
           ),
           const SizedBox(height: 40),
 
-          _buildReceiptRow('Tarifa del viaje', '\$${total.toStringAsFixed(0)}'),
+          _buildReceiptRow('Tarifa del viaje', '\$${total.toStringAsFixed(2)}'),
           if (tip > 0)
             _buildReceiptRow(
               'Propina',
-              '\$${tip.toStringAsFixed(0)}',
+              '\$${tip.toStringAsFixed(2)}',
               color: Colors.green,
             ),
           const Divider(height: 40),
           _buildReceiptRow(
             'Tu ganancia neta',
-            '\$${driverEarning.toStringAsFixed(0)}',
+            '\$${driverEarning.toStringAsFixed(2)}',
             isBold: true,
             color: Colors.green,
           ),
           _buildReceiptRow(
             'Descuento App TinCars (25%)',
-            '-\$${appFee.toStringAsFixed(0)}',
+            '-\$${appFee.toStringAsFixed(2)}',
             color: Colors.redAccent,
           ),
 

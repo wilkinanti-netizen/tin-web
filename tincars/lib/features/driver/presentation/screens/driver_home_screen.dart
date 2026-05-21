@@ -18,10 +18,13 @@ import 'package:tincars/features/profile/presentation/controllers/profile_contro
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/driver/presentation/screens/driver_registration_screen.dart';
 import 'package:tincars/features/driver/presentation/screens/driver_waiting_screen.dart';
+import 'package:tincars/features/home/presentation/providers/user_mode_provider.dart';
 import 'package:tincars/core/utils/marker_utils.dart';
 import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/core/services/notification_service.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
+import 'package:tincars/core/services/realtime_location_service.dart';
+import 'package:tincars/core/services/surge_pricing_service.dart';
 
 class DriverHomeScreen extends ConsumerStatefulWidget {
   const DriverHomeScreen({super.key});
@@ -43,6 +46,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   bool _isFirstLocationUpdate = true;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
+  Set<Circle> _heatmapCircles = {};
   bool _isNavigatingToTrip = false; // Guard contra duplicados
   final MapsService _mapsService = MapsService();
   String? _currentShowingTripId;
@@ -61,10 +65,32 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     _currentShowingTripId = null;
   }
 
+  StreamSubscription? _heatmapSubscription;
+
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _startHeatmapUpdates();
+  }
+
+  void _startHeatmapUpdates() {
+    // Update heatmap every 30 seconds
+    _heatmapSubscription = Stream.periodic(
+      const Duration(seconds: 30),
+    ).listen((_) async {
+      if (!_isOnline || !mounted) return;
+      try {
+        final circles = await SurgePricingService.instance.generateHeatmapCircles();
+        if (mounted) setState(() => _heatmapCircles = circles);
+      } catch (e) {
+        debugPrint('Error updating heatmap: $e');
+      }
+    });
+    // Initial load
+    SurgePricingService.instance.generateHeatmapCircles().then((circles) {
+      if (mounted) setState(() => _heatmapCircles = circles);
+    }).catchError((_) {});
   }
 
   Future<void> _checkPermissions() async {
@@ -147,14 +173,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               if (_isOnline) {
                 final userId = FirebaseAuth.instance.currentUser?.uid;
                 if (userId != null) {
-                  ref
-                      .read(profileRepositoryProvider)
-                      .updateLocation(
-                        userId,
-                        position.latitude,
-                        position.longitude,
-                        heading: position.heading,
-                      );
+                  // Use RTDB for real-time GPS (cheaper than Firestore)
+                  RealtimeLocationService.instance.updateDriverLocation(
+                    userId,
+                    position.latitude,
+                    position.longitude,
+                    heading: position.heading,
+                  );
                 }
               }
             }
@@ -169,6 +194,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   void dispose() {
     _audioPlayer.dispose();
     _positionSubscription?.cancel();
+    _heatmapSubscription?.cancel();
+    // Set driver offline in RTDB when leaving
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      RealtimeLocationService.instance.removeDriverLocation(userId);
+    }
     super.dispose();
   }
 
@@ -229,7 +260,13 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         // 2. Si está en espera o rechazado, mostrar pantalla de espera
         if (user.driverStatus == DriverStatus.pending ||
             user.driverStatus == DriverStatus.rejected) {
-          return DriverWaitingScreen(status: user.driverStatus!.name);
+          final profile = driverProfileAsync.asData?.value;
+          return DriverWaitingScreen(
+            status: user.driverStatus!.name,
+            rejectionReason: profile?.rejectionReason,
+            driverId: user.id,
+            rejectedPhotos: profile?.rejectedPhotos,
+          );
         }
 
         // 3. Si no ha iniciado registro (isDriver es false o driver_data no existe)
@@ -239,6 +276,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             // Caso borde: tiene driver_data pero status no es active (posiblemente pending)
             return DriverWaitingScreen(
               status: user.driverStatus?.name ?? 'pending',
+              rejectionReason: profile.rejectionReason,
+              driverId: user.id,
+              rejectedPhotos: profile.rejectedPhotos,
             );
           },
           loading: () => const Scaffold(
@@ -317,6 +357,25 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 child: const Text(
                   'INICIAR REGISTRO',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                ref.read(isModeTransitioningProvider.notifier).start();
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  ref
+                      .read(userModeProvider.notifier)
+                      .setMode(UserMode.passenger);
+                });
+              },
+              icon: const Icon(Icons.person, color: Colors.white70),
+              label: const Text(
+                'CAMBIAR A MODO PASAJERO',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -462,7 +521,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
           GoogleMap(
             markers: _markers,
             polylines: _polylines,
-
+            circles: _heatmapCircles,
             onMapCreated: (controller) => _mapController = controller,
             initialCameraPosition: CameraPosition(
               target: _currentPosition != null
@@ -666,7 +725,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '\$${(stats['earnings'] ?? 0.0).toStringAsFixed(0)}',
+                                    '\$${(stats['earnings'] ?? 0.0).toStringAsFixed(2)}',
                                     style: const TextStyle(
                                       color: Colors.black,
                                       fontSize: 30,

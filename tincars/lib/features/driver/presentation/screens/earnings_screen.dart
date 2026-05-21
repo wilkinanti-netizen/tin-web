@@ -133,7 +133,7 @@ class EarningsScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '\$${(userProfile.value?.walletBalance ?? 0.0).toStringAsFixed(0)}',
+                              '\$${(userProfile.value?.walletBalance ?? 0.0).toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -171,7 +171,7 @@ class EarningsScreen extends ConsumerWidget {
                                 _miniStat(
                                   Icons.account_balance_rounded,
                                   'Ganancia Total',
-                                  '\$${profile.totalEarnings.toStringAsFixed(0)}',
+                                  '\$${profile.totalEarnings.toStringAsFixed(2)}',
                                 ),
                               ],
                             ),
@@ -222,7 +222,7 @@ class EarningsScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '\$${totalWeekly.toStringAsFixed(0)}',
+                            '\$${totalWeekly.toStringAsFixed(2)}',
                             style: const TextStyle(
                               color: Colors.green,
                               fontSize: 16,
@@ -525,7 +525,7 @@ class _TimelineItem extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          '\$${netPrice.toStringAsFixed(0)}',
+                          '\$${netPrice.toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.green,
                             fontSize: 16,
