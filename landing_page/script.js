@@ -7,50 +7,121 @@ document.addEventListener('DOMContentLoaded', () => {
         signature: document.getElementById('price-signature')
     };
 
+    let pricingConfig = null;
+
+    // Helper to recursively parse Firestore REST API format
+    function parseFirestoreValue(val) {
+        if (!val) return null;
+        if ('stringValue' in val) return val.stringValue;
+        if ('doubleValue' in val) return parseFloat(val.doubleValue);
+        if ('integerValue' in val) return parseInt(val.integerValue, 10);
+        if ('booleanValue' in val) return val.booleanValue;
+        if ('nullValue' in val) return null;
+        if ('arrayValue' in val) {
+            const values = val.arrayValue.values || [];
+            return values.map(parseFirestoreValue);
+        }
+        if ('mapValue' in val) {
+            const fields = val.mapValue.fields || {};
+            const obj = {};
+            for (const [key, value] of Object.entries(fields)) {
+                obj[key] = parseFirestoreValue(value);
+            }
+            return obj;
+        }
+        return val;
+    }
+
+    async function fetchPricingConfig() {
+        try {
+            const response = await fetch('https://firestore.googleapis.com/v1/projects/tincars-b7d42/databases/(default)/documents/admin_settings/pricing');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch pricing config: ${response.status}`);
+            }
+            const doc = await response.json();
+            const fields = doc.fields || {};
+            const parsedData = {};
+            for (const [key, val] of Object.entries(fields)) {
+                parsedData[key] = parseFirestoreValue(val);
+            }
+            
+            if (parsedData.vehicles) {
+                pricingConfig = parsedData.vehicles;
+                console.log('Successfully loaded live pricing configurations:', pricingConfig);
+                updatePrices();
+            }
+        } catch (e) {
+            console.error('Error fetching live pricing, using default rates:', e);
+        }
+    }
+
     function calculateFares(miles) {
         if (isNaN(miles) || miles < 0) return { essentials: 0, xl: 0, executive: 0, signature: 0 };
 
-        // Essentials: 2.50 base, 2.15 up to 5, then 1.85
-        let essentials = 2.50;
-        if (miles <= 5) {
-            essentials += miles * 2.15;
-        } else {
-            essentials += (5 * 2.15) + ((miles - 5) * 1.85);
-        }
+        // Determine if weekend (Friday, Saturday, Sunday)
+        const day = new Date().getDay();
+        const isWeekend = day === 0 || day === 5 || day === 6;
 
-        // XL: 3.00 base, 2.40 up to 5, then 2.15
-        let xl = 3.00;
-        if (miles <= 5) {
-            xl += miles * 2.40;
-        } else {
-            xl += (5 * 2.40) + ((miles - 5) * 2.15);
-        }
+        function getVehiclePrice(miles, vehicleKey) {
+            const config = pricingConfig ? pricingConfig[vehicleKey] : null;
+            
+            // Fallback hardcoded values if config is not yet loaded or API failed
+            if (!config) {
+                if (vehicleKey === 'essentials') {
+                    // Essentials: 2.50 base, 2.15 up to 5, then 1.85
+                    let base = 2.50;
+                    if (miles <= 5) return base + miles * 2.15;
+                    return base + (5 * 2.15) + ((miles - 5) * 1.85);
+                }
+                if (vehicleKey === 'essentials_xl') {
+                    // XL: 3.00 base, 2.40 up to 5, then 2.15
+                    let base = 3.00;
+                    if (miles <= 5) return base + miles * 2.40;
+                    return base + (5 * 2.40) + ((miles - 5) * 2.15);
+                }
+                if (vehicleKey === 'executive') {
+                    // Executive: 5 base, 4.40 up to 5, then 3.50 up to 15, then 3.30
+                    let base = 5.00;
+                    if (miles <= 5) return base + miles * 4.40;
+                    if (miles <= 15) return base + (5 * 4.40) + ((miles - 5) * 3.50);
+                    return base + (5 * 4.40) + (10 * 3.50) + ((miles - 15) * 3.30);
+                }
+                if (vehicleKey === 'signature_lux') {
+                    // Signature: 12 base, 5 up to 5, then 4.30 up to 15, then 4.00
+                    let base = 12.00;
+                    if (miles <= 5) return base + miles * 5.00;
+                    if (miles <= 15) return base + (5 * 5.00) + ((miles - 5) * 4.30);
+                    return base + (5 * 5.00) + (10 * 4.30) + ((miles - 15) * 4.00);
+                }
+                return 0.0;
+            }
 
-        // Executive: 5 base, 4.40 up to 5, then 3.50 up to 15, then 3.30
-        let executive = 5.00;
-        if (miles <= 5) {
-            executive += miles * 4.40;
-        } else if (miles <= 15) {
-            executive += (5 * 4.40) + ((miles - 5) * 3.50);
-        } else {
-            executive += (5 * 4.40) + (10 * 3.50) + ((miles - 15) * 3.30);
-        }
+            // Calculate price based on live config
+            const baseFare = isWeekend ? (config.base_weekend ?? config.base) : config.base;
+            const tiers = config.distance_tiers || [];
 
-        // Signature: 12 base, 5 up to 5, then 4.30 up to 15, then 4.00
-        let signature = 12.00;
-        if (miles <= 5) {
-            signature += miles * 5.00;
-        } else if (miles <= 15) {
-            signature += (5 * 5.00) + ((miles - 5) * 4.30);
-        } else {
-            signature += (5 * 5.00) + (10 * 4.30) + ((miles - 15) * 4.00);
+            const rate0to5 = tiers.length > 0 ? tiers[0].price_per_km : 0.0;
+            const rate5to15 = tiers.length > 1 ? tiers[1].price_per_km : 0.0;
+            const rate15plus = tiers.length > 2 ? tiers[2].price_per_km : 0.0;
+
+            let variableFare = 0.0;
+            if (miles <= 5) {
+                variableFare = miles * rate0to5;
+            } else if (miles <= 15) {
+                variableFare = (5 * rate0to5) + ((miles - 5) * rate5to15);
+            } else {
+                variableFare = (5 * rate0to5) + (10 * rate5to15) + ((miles - 15) * rate15plus);
+            }
+
+            const total = baseFare + variableFare;
+            return total < 5.00 ? 5.00 : total; // Minimum trip price of $5.00 USD
         }
 
         return {
-            essentials: essentials.toFixed(2),
-            xl: xl.toFixed(2),
-            executive: executive.toFixed(2),
-            signature: signature.toFixed(2)
+            essentials: getVehiclePrice(miles, 'essentials').toFixed(2),
+            xl: getVehiclePrice(miles, 'essentials_xl').toFixed(2),
+            executive: getVehiclePrice(miles, 'executive').toFixed(2),
+            signature: getVehiclePrice(miles, 'signature_lux').toFixed(2)
         };
     }
 
@@ -66,8 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     distanceInput.addEventListener('input', updatePrices);
 
-    // Initial calculation
+    // Initial calculation and fetching of live prices
     updatePrices();
+    fetchPricingConfig();
 
     // Scroll Reveal Animation
     const observerOptions = {

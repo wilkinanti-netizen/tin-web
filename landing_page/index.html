@@ -17,6 +17,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="styles.css">
+    <!-- Google Maps API with Places Library -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB5w2dlzZa8gLc2z0gN31oDFGo8dh_jhrU&libraries=places"></script>
 </head>
 
 <body>
@@ -49,11 +52,64 @@
                     superar tus expectativas.</p>
                 <div class="hero-btns reveal-delay-2">
                     <a href="#services" class="btn-outline" data-i18n="hero_btn_fleet">Ver Flota</a>
-                    <a href="#calculator" class="btn-primary" data-i18n="hero_btn_estimate">Estimar Tarifa</a>
+                    <a href="#calculator-card" class="btn-primary" data-i18n="hero_btn_estimate">Estimar Tarifa</a>
                 </div>
             </div>
-        </section>div>
-        <!-- The hero image is now a background in CSS -->
+
+            <div class="hero-visual reveal-delay-2">
+                <!-- Premium Glassmorphic Ride Request Calculator Card -->
+                <div class="calculator-card glass" id="calculator-card">
+                    <div class="calc-header-compact">
+                        <h3 data-i18n="calc_card_title">Estima tu Viaje</h3>
+                        <p data-i18n="calc_card_subtitle">Ingresa origen y destino para precios reales</p>
+                    </div>
+
+                    <div class="calc-form">
+                        <div class="input-field">
+                            <i class="fas fa-map-marker-alt origin-icon"></i>
+                            <input type="text" id="origin-input" placeholder="Punto A (Origen)" autocomplete="off">
+                            <div id="origin-suggestions" class="suggestions-list"></div>
+                        </div>
+
+                        <div class="input-field">
+                            <i class="fas fa-flag destination-icon"></i>
+                            <input type="text" id="destination-input" placeholder="Punto B (Destino)"
+                                autocomplete="off">
+                            <div id="destination-suggestions" class="suggestions-list"></div>
+                        </div>
+
+                        <!-- Distance Badge -->
+                        <div class="distance-info-compact" style="display: none;">
+                            <span class="dist-badge"><i class="fas fa-route"></i> <span id="route-distance">0.0</span>
+                                millas</span>
+                        </div>
+                    </div>
+
+                    <div class="estimate-grid-compact">
+                        <div class="estimate-item-compact" data-type="essentials">
+                            <span class="label">Essentials</span>
+                            <span class="price" id="card-price-essentials">$0.00</span>
+                        </div>
+                        <div class="estimate-item-compact" data-type="xl">
+                            <span class="label">XL</span>
+                            <span class="price" id="card-price-xl">$0.00</span>
+                        </div>
+                        <div class="estimate-item-compact" data-type="executive">
+                            <span class="label">Executive</span>
+                            <span class="price" id="card-price-executive">$0.00</span>
+                        </div>
+                        <div class="estimate-item-compact" data-type="signature">
+                            <span class="label">Signature Lux</span>
+                            <span class="price" id="card-price-signature">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- CTA to Request / Order Ride -->
+                    <button class="btn-primary request-ride-btn" id="request-ride-btn" data-i18n="btn_request_ride">
+                        <i class="fas fa-paper-plane"></i> Pedir Viaje Ahora
+                    </button>
+                </div>
+            </div>
         </section>
 
         <!-- Services Section -->
@@ -184,6 +240,21 @@
                 style="color: var(--primary-color); text-decoration: none;">Política de Privacidad</a>
         </div>
     </footer>
+
+    <!-- Premium App Download Modal -->
+    <div id="download-modal" class="modal-overlay">
+        <div class="modal-content glass">
+            <div class="modal-close" id="close-modal">&times;</div>
+            <i class="fas fa-mobile-alt modal-icon"></i>
+            <h3 data-i18n="modal_title">¡Todo listo para viajar!</h3>
+            <p data-i18n="modal_desc">Para completar tu solicitud y viajar con el mejor confort, descarga nuestra
+                aplicación móvil oficial.</p>
+            <div class="store-buttons">
+                <a href="#" class="store-btn"><i class="fab fa-apple"></i> App Store</a>
+                <a href="#" class="store-btn"><i class="fab fa-google-play"></i> Google Play</a>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

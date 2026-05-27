@@ -106,9 +106,6 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final locationGranted = await PermissionService.instance
         .handleLocationPermission(context);
     if (locationGranted) {
-      await PermissionService.instance.handleBackgroundLocationPermission(
-        context,
-      );
       // Obtener ubicación inicial rápidamente
       try {
         final pos = await Geolocator.getCurrentPosition();

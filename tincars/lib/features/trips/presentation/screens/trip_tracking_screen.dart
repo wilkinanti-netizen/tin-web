@@ -46,83 +46,84 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
   TripStatus? _lastStatus;
   bool _isAutoCenterEnabled = true;
 
-  static const String _silverMapStyle = '''
+  static const String _premiumGoogleMapStyle = '''
 [
   {
-    "elementType": "geometry",
-    "stylers": [{"color": "#f5f5f5"}]
+    "featureType": "administrative",
+    "elementType": "geometry.fill",
+    "stylers": [{"visibility": "on"}]
   },
   {
+    "featureType": "poi",
     "elementType": "labels.icon",
     "stylers": [{"visibility": "off"}]
   },
   {
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
+    "featureType": "poi.business",
+    "stylers": [{"visibility": "off"}]
   },
   {
-    "elementType": "labels.text.stroke",
-    "stylers": [{"color": "#f5f5f5"}]
+    "featureType": "poi.medical",
+    "stylers": [{"visibility": "off"}]
   },
   {
-    "featureType": "administrative.land_parcel",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#bdbdbd"}]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "geometry",
-    "stylers": [{"color": "#eeeeee"}]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
+    "featureType": "poi.school",
+    "stylers": [{"visibility": "off"}]
   },
   {
     "featureType": "poi.park",
     "elementType": "geometry",
-    "stylers": [{"color": "#e5e5e5"}]
+    "stylers": [{"color": "#c8e6c9"}]
   },
   {
-    "featureType": "road",
+    "featureType": "poi.park",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#388e3c"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [{"color": "#ffe082"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#ffd54f"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "labels.icon",
+    "stylers": [{"visibility": "on"}]
+  },
+  {
+    "featureType": "road.arterial",
     "elementType": "geometry",
     "stylers": [{"color": "#ffffff"}]
   },
   {
     "featureType": "road.arterial",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{"color": "#dadada"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#dcdcdc"}]
   },
   {
     "featureType": "road.local",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#9e9e9e"}]
+    "elementType": "geometry",
+    "stylers": [{"color": "#ffffff"}]
   },
   {
-    "featureType": "transit.line",
-    "elementType": "geometry",
-    "stylers": [{"color": "#e5e5e5"}]
+    "featureType": "road.local",
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#e0e0e0"}]
   },
   {
     "featureType": "water",
     "elementType": "geometry",
-    "stylers": [{"color": "#c9c9c9"}]
+    "stylers": [{"color": "#90caf9"}]
   },
   {
     "featureType": "water",
     "elementType": "labels.text.fill",
-    "stylers": [{"color": "#9e9e9e"}]
+    "stylers": [{"color": "#1565c0"}]
   }
 ]
 ''';
@@ -998,7 +999,7 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               key: ValueKey('tracking_map_${widget.tripId}'),
               onMapCreated: (controller) {
                 mapController = controller;
-                controller.setMapStyle(_silverMapStyle);
+                controller.setMapStyle(_premiumGoogleMapStyle);
                 if (_lastDirections != null)
                   _fitBounds(_lastDirections!['bounds']);
               },
@@ -1013,6 +1014,8 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               myLocationButtonEnabled: false,
               compassEnabled: false,
               mapToolbarEnabled: false,
+              buildingsEnabled: true,
+              trafficEnabled: true,
             ),
           ),
           // Reduced and more elegant floating status HUD

@@ -307,30 +307,40 @@ class MarkerUtils {
     }
   }
 
-  /// Crea un marcador de flecha para la ubicación del conductor
+  /// Crea un marcador de flecha para la ubicación del conductor (Estilo Google Maps Premium)
   static Future<BitmapDescriptor> createDriverArrowMarker() async {
-    const size = 45.0; // Smaller size as requested
+    const size = 48.0;
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
-    final paint = ui.Paint()
-      ..color = Colors
-          .black // Black arrow as requested
-      ..style = ui.PaintingStyle.fill;
-
-    // Sombra para que resalte
+    
+    // 1. Sombra exterior
     final shadowPaint = ui.Paint()
-      ..color = Colors.black.withOpacity(0.3)
+      ..color = Colors.black.withOpacity(0.25)
       ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 4);
 
     final path = ui.Path();
-    path.moveTo(size / 2, 4); // Punta
-    path.lineTo(size * 0.85, size * 0.85);
-    path.lineTo(size * 0.5, size * 0.7);
-    path.lineTo(size * 0.15, size * 0.85);
+    path.moveTo(size / 2, 6); // Punta
+    path.lineTo(size * 0.82, size * 0.82);
+    path.lineTo(size * 0.5, size * 0.68);
+    path.lineTo(size * 0.18, size * 0.82);
     path.close();
 
     canvas.drawPath(path.shift(const Offset(0, 2)), shadowPaint);
-    canvas.drawPath(path, paint);
+
+    // 2. Borde Blanco exterior para resalte de contraste
+    final borderPaint = ui.Paint()
+      ..color = Colors.white
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = ui.StrokeCap.round
+      ..strokeJoin = ui.StrokeJoin.round;
+    canvas.drawPath(path, borderPaint);
+
+    // 3. Flecha interior (Azul Neón de Google Maps)
+    final arrowPaint = ui.Paint()
+      ..color = const Color(0xFF2979FF) // Google Maps Neon Blue
+      ..style = ui.PaintingStyle.fill;
+    canvas.drawPath(path, arrowPaint);
 
     final picture = recorder.endRecording();
     final img = await picture.toImage(size.toInt(), size.toInt());

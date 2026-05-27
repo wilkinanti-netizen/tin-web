@@ -36,84 +36,85 @@ class _DriverTripManagementScreenState
     with SingleTickerProviderStateMixin {
   GoogleMapController? mapController;
 
-  // Custom Map Style (Google Maps Silver/Clean Navigation)
-  static const String _silverMapStyle = '''
+  // Custom Map Style (Google Maps Vibrant/Clean Navigation)
+  static const String _premiumGoogleMapStyle = '''
 [
   {
-    "elementType": "geometry",
-    "stylers": [{"color": "#f5f5f5"}]
+    "featureType": "administrative",
+    "elementType": "geometry.fill",
+    "stylers": [{"visibility": "on"}]
   },
   {
+    "featureType": "poi",
     "elementType": "labels.icon",
     "stylers": [{"visibility": "off"}]
   },
   {
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
+    "featureType": "poi.business",
+    "stylers": [{"visibility": "off"}]
   },
   {
-    "elementType": "labels.text.stroke",
-    "stylers": [{"color": "#f5f5f5"}]
+    "featureType": "poi.medical",
+    "stylers": [{"visibility": "off"}]
   },
   {
-    "featureType": "administrative.land_parcel",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#bdbdbd"}]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "geometry",
-    "stylers": [{"color": "#eeeeee"}]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
+    "featureType": "poi.school",
+    "stylers": [{"visibility": "off"}]
   },
   {
     "featureType": "poi.park",
     "elementType": "geometry",
-    "stylers": [{"color": "#e5e5e5"}]
+    "stylers": [{"color": "#c8e6c9"}]
   },
   {
-    "featureType": "road",
+    "featureType": "poi.park",
+    "elementType": "labels.text.fill",
+    "stylers": [{"color": "#388e3c"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry",
+    "stylers": [{"color": "#ffe082"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#ffd54f"}]
+  },
+  {
+    "featureType": "road.highway",
+    "elementType": "labels.icon",
+    "stylers": [{"visibility": "on"}]
+  },
+  {
+    "featureType": "road.arterial",
     "elementType": "geometry",
     "stylers": [{"color": "#ffffff"}]
   },
   {
     "featureType": "road.arterial",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{"color": "#dadada"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#616161"}]
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#dcdcdc"}]
   },
   {
     "featureType": "road.local",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#9e9e9e"}]
+    "elementType": "geometry",
+    "stylers": [{"color": "#ffffff"}]
   },
   {
-    "featureType": "transit.line",
-    "elementType": "geometry",
-    "stylers": [{"color": "#e5e5e5"}]
+    "featureType": "road.local",
+    "elementType": "geometry.stroke",
+    "stylers": [{"color": "#e0e0e0"}]
   },
   {
     "featureType": "water",
     "elementType": "geometry",
-    "stylers": [{"color": "#c9c9c9"}]
+    "stylers": [{"color": "#90caf9"}]
   },
   {
     "featureType": "water",
     "elementType": "labels.text.fill",
-    "stylers": [{"color": "#9e9e9e"}]
+    "stylers": [{"color": "#1565c0"}]
   }
 ]
 ''';
@@ -137,6 +138,7 @@ class _DriverTripManagementScreenState
   BitmapDescriptor? _passengerAvatarMarker;
   BitmapDescriptor? _driverArrowIcon;
   BitmapDescriptor? _personMarker;
+  String? _lastLoadedVehicleType;
   
   Timer? _waitTimer;
   int _waitSecondsRemaining = 60;
@@ -240,15 +242,18 @@ class _DriverTripManagementScreenState
 
   Future<void> _loadMapIcons([
     List<TripStop> intermediateStops = const [],
+    String? vehicleType,
   ]) async {
-    // Load the driver arrow first so it appears instantly
-    MarkerUtils.createDriverArrowMarker()
-        .then((icon) {
-          if (mounted) {
-            setState(() => _driverArrowIcon = icon);
-          }
-        })
-        .catchError((_) {});
+    // Load the premium Google Maps-style navigation arrow for driving
+    if (_driverArrowIcon == null) {
+      MarkerUtils.createDriverArrowMarker()
+          .then((icon) {
+            if (mounted) {
+              setState(() => _driverArrowIcon = icon);
+            }
+          })
+          .catchError((_) {});
+    }
 
     MarkerUtils.createPersonMarker()
         .then((icon) {
@@ -697,7 +702,7 @@ class _DriverTripManagementScreenState
           });
         }
 
-        _loadMapIcons(trip.intermediateStops);
+        _loadMapIcons(trip.intermediateStops, trip.vehicleType);
         _fetchDirections(trip);
       }
 
@@ -717,7 +722,7 @@ class _DriverTripManagementScreenState
           data: (trip) {
             // Check if icons need to be reloaded (if stops count changed)
             if (_stopIcons.length != trip.intermediateStops.length) {
-              _loadMapIcons(trip.intermediateStops);
+              _loadMapIcons(trip.intermediateStops, trip.vehicleType);
             }
 
             final passengerAsync = ref.watch(
@@ -896,7 +901,7 @@ class _DriverTripManagementScreenState
           key: ValueKey('driver_map_${widget.tripId}_${trip.status.name}'),
           onMapCreated: (controller) {
             mapController = controller;
-            controller.setMapStyle(_silverMapStyle);
+            controller.setMapStyle(_premiumGoogleMapStyle);
             // Smaller delay for faster appearance
             Future.delayed(const Duration(milliseconds: 100), () {
               _fetchDirections(trip);
@@ -927,8 +932,8 @@ class _DriverTripManagementScreenState
             _currentZoom = position.zoom;
           },
           mapToolbarEnabled: false,
-          buildingsEnabled: false,
-          trafficEnabled: false,
+          buildingsEnabled: true,
+          trafficEnabled: true,
         ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
