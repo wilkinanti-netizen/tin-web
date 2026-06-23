@@ -67,33 +67,38 @@ class MarkerUtils {
       final Uint8List bytes = (await NetworkAssetBundle(
         Uri.parse(url),
       ).load(url)).buffer.asUint8List();
+      const pixelRatio = 3.0;
+      const logicalSize = 45.0;
+      const size = logicalSize * pixelRatio;
+      
       final ui.Codec codec = await ui.instantiateImageCodec(
         bytes,
-        targetWidth: 100,
-        targetHeight: 100,
+        targetWidth: size.toInt(),
+        targetHeight: size.toInt(),
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ui.Image image = fi.image;
 
-      const size = 45.0; // Smaller size as requested
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
+
+      canvas.scale(pixelRatio, pixelRatio);
 
       // Draw shadow
       final paintShadow = Paint()
         ..color = Colors.black.withOpacity(0.4)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
       canvas.drawCircle(
-        const Offset(size / 2, size / 2 + 2),
-        size / 2 - 2,
+        const Offset(logicalSize / 2, logicalSize / 2 + 2),
+        logicalSize / 2 - 2,
         paintShadow,
       );
 
       // Draw background circle (White)
       final paintBg = Paint()..color = Colors.white;
       canvas.drawCircle(
-        const Offset(size / 2, size / 2),
-        size / 2 - 2,
+        const Offset(logicalSize / 2, logicalSize / 2),
+        logicalSize / 2 - 2,
         paintBg,
       );
 
@@ -103,27 +108,27 @@ class MarkerUtils {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5;
       canvas.drawCircle(
-        const Offset(size / 2, size / 2),
-        size / 2 - 2,
+        const Offset(logicalSize / 2, logicalSize / 2),
+        logicalSize / 2 - 2,
         paintBorder,
       );
 
       // Clip image to circle
-      final path = Path()..addOval(Rect.fromLTWH(4, 4, size - 8, size - 8));
+      final path = Path()..addOval(Rect.fromLTWH(4, 4, logicalSize - 8, logicalSize - 8));
       canvas.clipPath(path);
 
       // Draw image
       canvas.drawImageRect(
         image,
         Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-        Rect.fromLTWH(4, 4, size - 8, size - 8),
+        Rect.fromLTWH(4, 4, logicalSize - 8, logicalSize - 8),
         Paint(),
       );
 
       final picture = recorder.endRecording();
       final outputImage = await picture.toImage(size.toInt(), size.toInt());
       final data = await outputImage.toByteData(format: ui.ImageByteFormat.png);
-      return BitmapDescriptor.bytes(data!.buffer.asUint8List());
+      return BitmapDescriptor.bytes(data!.buffer.asUint8List(), imagePixelRatio: pixelRatio);
     } catch (e) {
       debugPrint('Error creating avatar marker: $e');
       return BitmapDescriptor.defaultMarker;

@@ -22,6 +22,14 @@ class RealtimeLocationService {
   }) async {
     try {
       final ref = _db.ref('driver_locations/$driverId');
+      
+      // Manejo de Conductores Fantasmas: si se pierde la conexión, bórralo de la lista
+      if (isOnline) {
+        await ref.onDisconnect().remove();
+      } else {
+        await ref.onDisconnect().cancel();
+      }
+      
       await ref.set({
         'lat': lat,
         'lng': lng,

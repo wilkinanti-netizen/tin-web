@@ -17,6 +17,7 @@ import 'package:tincars/features/trips/presentation/controllers/chat_controller.
 import 'package:tincars/core/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tincars/core/services/maps_service.dart';
 import 'package:tincars/features/profile/domain/models/profiles.dart';
 import 'package:tincars/features/trips/domain/services/pricing_service.dart';
@@ -61,31 +62,7 @@ class _DriverTripManagementScreenState
     "featureType": "poi.school",
     "stylers": [{"visibility": "off"}]
   },
-  {
-    "featureType": "poi.park",
-    "elementType": "geometry",
-    "stylers": [{"color": "#c8e6c9"}]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#388e3c"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{"color": "#ffe082"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry.stroke",
-    "stylers": [{"color": "#ffd54f"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "labels.icon",
-    "stylers": [{"visibility": "on"}]
-  },
+
   {
     "featureType": "road.arterial",
     "elementType": "geometry",
@@ -350,6 +327,18 @@ class _DriverTripManagementScreenState
             final loc = LatLng(position.latitude, position.longitude);
             final heading = position.heading;
 
+            // SNAP TO ROAD LOGIC
+            LatLng snappedLoc = loc;
+            if (_lastDirections != null) {
+              final polyline = _lastDirections!['polyline'] as List<LatLng>?;
+              if (polyline != null && polyline.isNotEmpty) {
+                snappedLoc = _mapsService.findNearestPointOnPolyline(
+                  loc,
+                  polyline,
+                );
+              }
+            }
+
             // Solo actualizar Firestore si nos hemos movido más de 10 metros
             final lastLoc = _currentDriverLocation;
             double distanceMoved = 0;
@@ -357,8 +346,8 @@ class _DriverTripManagementScreenState
               distanceMoved = Geolocator.distanceBetween(
                 lastLoc.latitude,
                 lastLoc.longitude,
-                position.latitude,
-                position.longitude,
+                snappedLoc.latitude,
+                snappedLoc.longitude,
               );
             }
 
@@ -368,15 +357,15 @@ class _DriverTripManagementScreenState
                   .read(tripControllerProvider.notifier)
                   .updateLocation(
                     widget.tripId,
-                    position.latitude,
-                    position.longitude,
+                    snappedLoc.latitude,
+                    snappedLoc.longitude,
                     heading: heading,
                   );
               // Write to RTDB (cheaper real-time updates)
               RealtimeLocationService.instance.updateTripDriverLocation(
                 widget.tripId,
-                position.latitude,
-                position.longitude,
+                snappedLoc.latitude,
+                snappedLoc.longitude,
                 heading: heading,
               );
             }
@@ -384,18 +373,6 @@ class _DriverTripManagementScreenState
             if (mounted) {
               final bool isUpdatingForFirstTime =
                   _currentDriverLocation == null;
-
-              // SNAP TO ROAD LOGIC
-              LatLng snappedLoc = loc;
-              if (_lastDirections != null) {
-                final polyline = _lastDirections!['polyline'] as List<LatLng>?;
-                if (polyline != null && polyline.isNotEmpty) {
-                  snappedLoc = _mapsService.findNearestPointOnPolyline(
-                    loc,
-                    polyline,
-                  );
-                }
-              }
 
               setState(() {
                 _currentDriverLocation = snappedLoc;
@@ -413,22 +390,22 @@ class _DriverTripManagementScreenState
                   ?.value;
               if (currentTrip != null) {
                 if (isUpdatingForFirstTime || _lastDirectionsLoc == null) {
-                  _lastDirectionsLoc = loc;
+                  _lastDirectionsLoc = snappedLoc;
                   _fetchDirections(currentTrip);
                 } else if (Geolocator.distanceBetween(
                       _lastDirectionsLoc!.latitude,
                       _lastDirectionsLoc!.longitude,
-                      loc.latitude,
-                      loc.longitude,
+                      snappedLoc.latitude,
+                      snappedLoc.longitude,
                     ) >
                     30) {
-                  _lastDirectionsLoc = loc;
+                  _lastDirectionsLoc = snappedLoc;
                   _fetchDirections(currentTrip);
                 }
               }
 
               if (_isAutoCenterEnabled) {
-                _updateCamera(loc, heading);
+                _updateCamera(snappedLoc, heading);
               }
             }
           },
@@ -538,9 +515,9 @@ class _DriverTripManagementScreenState
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final url = 'tel:911';
-              if (await canLaunchUrlString(url)) {
-                await launchUrlString(url);
+              final uri = Uri.parse('tel:911');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -932,8 +909,8 @@ class _DriverTripManagementScreenState
             _currentZoom = position.zoom;
           },
           mapToolbarEnabled: false,
-          buildingsEnabled: true,
-          trafficEnabled: true,
+          buildingsEnabled: false,
+          trafficEnabled: false,
         ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
@@ -942,7 +919,7 @@ class _DriverTripManagementScreenState
           child: _buildTopStatusHUD(trip),
         ),
         Positioned(
-          bottom: 360, // Above the GPS FAB
+          bottom: trip.status == TripStatus.arrived ? 450 : 360, // Above the GPS FAB
           right: 20,
           child: Column(
             children: [
@@ -973,7 +950,7 @@ class _DriverTripManagementScreenState
           ),
         ),
         Positioned(
-          bottom: 300, // Moved higher to avoid covering bottom panel
+          bottom: trip.status == TripStatus.arrived ? 390 : 300, // Moved higher to avoid covering bottom panel
           right: 20,
           child: FloatingActionButton(
             heroTag: 'gps_fab',
@@ -1249,46 +1226,56 @@ class _DriverTripManagementScreenState
   Widget _buildWaitTimeInfo() {
     final bool isExtraWait = _waitSecondsRemaining <= 0;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isExtraWait ? Colors.orange.shade50 : Colors.green.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: (isExtraWait ? Colors.orange : Colors.green).withOpacity(0.2),
-        ),
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(
-            isExtraWait ? Icons.warning_amber_rounded : Icons.timer_outlined,
-            color: isExtraWait ? Colors.orange.shade700 : Colors.green.shade700,
+          Row(
+            children: [
+              Icon(
+                Icons.access_time_filled_rounded,
+                size: 20,
+                color: isExtraWait ? Colors.black : Colors.black54,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isExtraWait ? 'Tiempo de espera' : 'Tiempo de cortesía',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isExtraWait ? FontWeight.w800 : FontWeight.w700,
+                  color: isExtraWait ? Colors.black : Colors.black87,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isExtraWait ? 'ESPERA CON CARGO' : 'TIEMPO DE CORTESÍA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: isExtraWait ? Colors.orange.shade800 : Colors.green.shade800,
-                    letterSpacing: 1,
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                isExtraWait
+                    ? _formatElapsed(_extraWaitSeconds)
+                    : _formatElapsed(_waitSecondsRemaining),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: isExtraWait ? Colors.black : Colors.black54,
                 ),
+              ),
+              if (isExtraWait)
                 Text(
-                  isExtraWait
-                      ? 'Saldo acumulado: +\$${_waitFeeAccumulated.toStringAsFixed(2)} (${_formatElapsed(_extraWaitSeconds)})'
-                      : 'Restan: ${_formatElapsed(_waitSecondsRemaining)}',
+                  '+\$${_waitFeeAccumulated.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: Colors.black87,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black54,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ],
       ),
@@ -1358,11 +1345,11 @@ class _DriverTripManagementScreenState
       child: ElevatedButton(
         onPressed: _isUpdatingStatus ? null : () => _handleNextStep(trip),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _getStatusColor(trip.status),
+          backgroundColor: Colors.black,
           foregroundColor: Colors.white,
-          elevation: 8,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: _isUpdatingStatus
@@ -1440,8 +1427,9 @@ class _DriverTripManagementScreenState
                 description: 'Navegación turn-by-turn con mapas de Google',
                 onTap: () async {
                   Navigator.pop(context);
-                  final url = 'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}&travelmode=driving';
-                  await _launchMapUrl(url);
+                  final nativeUrl = 'comgooglemaps://?daddr=${loc.latitude},${loc.longitude}&directionsmode=driving';
+                  final webUrl = 'https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}&travelmode=driving';
+                  await _launchMapUrl(nativeUrl, fallbackUrl: webUrl);
                 },
               ),
               const SizedBox(height: 12),
@@ -1452,8 +1440,9 @@ class _DriverTripManagementScreenState
                 description: 'Alertas de tráfico, policía y radares en tiempo real',
                 onTap: () async {
                   Navigator.pop(context);
-                  final url = 'https://waze.com/ul?ll=${loc.latitude},${loc.longitude}&navigate=yes';
-                  await _launchMapUrl(url);
+                  final nativeUrl = 'waze://?ll=${loc.latitude},${loc.longitude}&navigate=yes';
+                  final webUrl = 'https://waze.com/ul?ll=${loc.latitude},${loc.longitude}&navigate=yes';
+                  await _launchMapUrl(nativeUrl, fallbackUrl: webUrl);
                 },
               ),
               if (isIOS) ...[
@@ -1477,15 +1466,14 @@ class _DriverTripManagementScreenState
     );
   }
 
-  Future<void> _launchMapUrl(String url) async {
+  Future<void> _launchMapUrl(String url, {String? fallbackUrl}) async {
     try {
       if (await canLaunchUrlString(url)) {
-        await launchUrlString(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
+        await launchUrlString(url, mode: LaunchMode.externalApplication);
+      } else if (fallbackUrl != null && await canLaunchUrlString(fallbackUrl)) {
+        await launchUrlString(fallbackUrl, mode: LaunchMode.externalApplication);
       } else {
-        await launchUrlString(url, mode: LaunchMode.platformDefault);
+        AppLogger.log('Could not launch any map URL');
       }
     } catch (e) {
       AppLogger.log('Error launching navigation app: $e');
@@ -1565,7 +1553,7 @@ class _DriverTripManagementScreenState
           child: _buildSecondaryAction(
             icon: Icons.chat_bubble_rounded,
             label: 'CHAT',
-            color: Colors.black87,
+            color: Colors.black,
             onTap: () {
               Navigator.push(
                 context,
@@ -1585,7 +1573,7 @@ class _DriverTripManagementScreenState
           child: _buildSecondaryAction(
             icon: Icons.call_rounded,
             label: 'LLAMAR',
-            color: Colors.green[700]!,
+            color: Colors.black,
             onTap: () => _makePhoneCall(passengerAsync.value?.phoneNumber),
           ),
         ),
@@ -1594,7 +1582,7 @@ class _DriverTripManagementScreenState
           child: _buildSecondaryAction(
             icon: Icons.security_rounded,
             label: 'SOS',
-            color: Colors.red[700]!,
+            color: Colors.black,
             onTap: () => _handleSOS(),
           ),
         ),
@@ -1614,9 +1602,9 @@ class _DriverTripManagementScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.1)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black12),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1949,33 +1937,53 @@ class _DriverTripManagementScreenState
     final points = _lastDirections!['polyline'] as List<LatLng>?;
     if (points == null || points.length < 2) return _currentDriverHeading;
 
-    // Find the segment the driver is currently on or closest to
-    int closestIndex = 0;
+    // Find the segment that the snapped location is on
+    int bestSegmentIndex = 0;
     double minDistance = double.maxFinite;
 
-    for (int i = 0; i < points.length; i++) {
-      final dist = Geolocator.distanceBetween(
-        _currentDriverLocation!.latitude,
-        _currentDriverLocation!.longitude,
-        points[i].latitude,
-        points[i].longitude,
-      );
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = points[i];
+      final p2 = points[i + 1];
+
+      // Distance to segment
+      final double l2 = (p1.latitude - p2.latitude) * (p1.latitude - p2.latitude) +
+          (p1.longitude - p2.longitude) * (p1.longitude - p2.longitude);
+      
+      double dist = 0;
+      if (l2 == 0.0) {
+        dist = (_currentDriverLocation!.latitude - p1.latitude) * (_currentDriverLocation!.latitude - p1.latitude) +
+            (_currentDriverLocation!.longitude - p1.longitude) * (_currentDriverLocation!.longitude - p1.longitude);
+      } else {
+        final double t = ((_currentDriverLocation!.latitude - p1.latitude) * (p2.latitude - p1.latitude) +
+                (_currentDriverLocation!.longitude - p1.longitude) * (p2.longitude - p1.longitude)) /
+            l2;
+        if (t < 0.0) {
+          dist = (_currentDriverLocation!.latitude - p1.latitude) * (_currentDriverLocation!.latitude - p1.latitude) +
+              (_currentDriverLocation!.longitude - p1.longitude) * (_currentDriverLocation!.longitude - p1.longitude);
+        } else if (t > 1.0) {
+          dist = (_currentDriverLocation!.latitude - p2.latitude) * (_currentDriverLocation!.latitude - p2.latitude) +
+              (_currentDriverLocation!.longitude - p2.longitude) * (_currentDriverLocation!.longitude - p2.longitude);
+        } else {
+          final projLat = p1.latitude + t * (p2.latitude - p1.latitude);
+          final projLng = p1.longitude + t * (p2.longitude - p1.longitude);
+          dist = (_currentDriverLocation!.latitude - projLat) * (_currentDriverLocation!.latitude - projLat) +
+              (_currentDriverLocation!.longitude - projLng) * (_currentDriverLocation!.longitude - projLng);
+        }
+      }
+
       if (dist < minDistance) {
         minDistance = dist;
-        closestIndex = i;
+        bestSegmentIndex = i;
       }
     }
 
-    // Use bearing to the next point on the polyline
-    if (closestIndex < points.length - 1) {
-      return Geolocator.bearingBetween(
-        points[closestIndex].latitude,
-        points[closestIndex].longitude,
-        points[closestIndex + 1].latitude,
-        points[closestIndex + 1].longitude,
-      );
-    }
-
-    return _currentDriverHeading;
+    final p1 = points[bestSegmentIndex];
+    final p2 = points[bestSegmentIndex + 1];
+    return Geolocator.bearingBetween(
+      p1.latitude,
+      p1.longitude,
+      p2.latitude,
+      p2.longitude,
+    );
   }
 }

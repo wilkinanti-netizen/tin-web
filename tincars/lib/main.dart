@@ -5,7 +5,11 @@ import 'package:tincars/core/services/offline_queue_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:tincars/firebase_options.dart';
 import 'package:tincars/core/router/app_router.dart';
 import 'package:tincars/core/theme/app_theme.dart';
@@ -18,6 +22,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tincars/core/providers/shared_prefs_provider.dart';
 import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:tincars/features/auth/data/auth_repository.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  AppLogger.log("FCM Background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +73,22 @@ class _InitializationWrapperState extends ConsumerState<InitializationWrapper> {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       AppLogger.log('MAIN: Firebase inicializado con éxito');
+
+      // Initialize Crashlytics
+      if (!kIsWeb) {
+        FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+        PlatformDispatcher.instance.onError = (error, stack) {
+          FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          return true;
+        };
+      }
+
+      // Initialize Analytics
+      FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+      analytics.logAppOpen();
+
+      // Register FCM Background handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
       // Initialize push notifications
       try {

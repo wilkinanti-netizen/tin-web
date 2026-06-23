@@ -17,6 +17,7 @@ import 'package:tincars/features/passenger/presentation/screens/trip_cancellatio
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 import 'package:tincars/core/utils/marker_utils.dart';
 import 'package:tincars/core/services/maps_service.dart';
@@ -360,7 +361,8 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
       try {
         Position position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
+            accuracy: LocationAccuracy.medium, // Reduce battery usage for passenger
+            timeLimit: Duration(seconds: 5),
           ),
         );
         ref
@@ -472,11 +474,22 @@ class _TripTrackingScreenState extends ConsumerState<TripTrackingScreen>
               // 1. Call emergency services
               launchUrl(Uri.parse('tel:123'));
 
-              // 2. Notify contacts (Mock SMS)
-              for (var contact in contacts) {
-                AppLogger.log(
-                  'Enviando Alerta SOS a ${contact.name} (${contact.phoneNumber}): "¡EMERGENCIA! Estoy en un viaje de TINS. Sigue mi ubicación aquí: https://tincars.app/track/${widget.tripId}"',
-                );
+              // 2. Open SMS App with pre-filled message
+              if (contacts.isNotEmpty) {
+                final phoneNumbers = contacts.map((c) => c.phoneNumber).join(',');
+                final message = '¡EMERGENCIA! Estoy en un viaje de TINS. Sigue mi ubicación en tiempo real aquí: https://tincars.app/track/${widget.tripId}';
+                final smsUrl = 'sms:$phoneNumbers?body=${Uri.encodeComponent(message)}';
+                
+                try {
+                  final uri = Uri.parse(smsUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  } else {
+                    AppLogger.log('Could not launch SMS URL');
+                  }
+                } catch (e) {
+                  AppLogger.log('Error launching SMS: $e');
+                }
               }
 
               if (mounted) {
@@ -2025,36 +2038,126 @@ class _AddStopSheetState extends State<_AddStopSheet> {
                   onTap: () {
                     showDialog(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('¿Cómo desea modificar?'),
-                        content: const Text(
-                          'Seleccione si desea cambiar el destino final o añadir este punto como una parada intermedia.',
+                      builder: (context) => Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: widget.currentStopsCount >= 2
-                                ? null
-                                : () {
-                                    Navigator.pop(context);
-                                    _onSelectSuggestion(s, false);
-                                  },
-                            child: Text(
-                              'AÑADIR PARADA',
-                              style: TextStyle(
-                                color: widget.currentStopsCount >= 2
-                                    ? Colors.grey
-                                    : Theme.of(context).primaryColor,
+                        backgroundColor: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.route_rounded,
+                                  size: 32,
+                                  color: Colors.blue,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 24),
+                              const Text(
+                                '¿Modificar viaje?',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.black,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Selecciona si deseas cambiar tu destino final por completo o añadir este punto como una parada rápida.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 54,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _onSelectSuggestion(s, true);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange.shade600,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.flag_rounded, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'NUEVO DESTINO',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 54,
+                                child: ElevatedButton(
+                                  onPressed: widget.currentStopsCount >= 2
+                                      ? null
+                                      : () {
+                                          Navigator.pop(context);
+                                          _onSelectSuggestion(s, false);
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: widget.currentStopsCount >= 2
+                                        ? Colors.grey.shade100
+                                        : Colors.blue.shade50,
+                                    foregroundColor: widget.currentStopsCount >= 2
+                                        ? Colors.grey
+                                        : Colors.blue.shade700,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_location_alt_rounded, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'AÑADIR PARADA',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _onSelectSuggestion(s, true);
-                            },
-                            child: const Text('NUEVO DESTINO'),
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },

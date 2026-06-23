@@ -70,6 +70,17 @@ class NotificationService {
           ?.requestNotificationsPermission();
     }
 
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      AppLogger.log('FCM Foreground message: ${message.messageId}');
+      if (message.notification != null) {
+        showTripStatusNotification(
+          title: message.notification!.title ?? 'Notificación',
+          body: message.notification!.body ?? '',
+        );
+      }
+    });
+
     AppLogger.log('NotificationService: Local notifications initialized.');
   }
 

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tincars/features/trips/presentation/controllers/trip_controller.dart';
 import 'package:tincars/features/trips/domain/models/trip_model.dart';
+import 'package:tincars/features/profile/data/profile_repository.dart';
+import 'package:tincars/features/profile/presentation/controllers/profile_controller.dart';
+import 'package:tincars/features/trips/domain/services/pricing_service.dart';
 import 'package:tincars/l10n/app_localizations.dart';
 
 class TripCancellationScreen extends ConsumerStatefulWidget {
@@ -27,6 +30,13 @@ class _TripCancellationScreenState
     super.dispose();
   }
 
+  /// Whether the driver has arrived and a cancellation fee applies.
+  bool get _hasCancellationFee => widget.trip.status == TripStatus.arrived;
+
+  /// Dynamic cancellation fee based on vehicle type.
+  double get _cancellationFee =>
+      ref.read(pricingServiceProvider).getCancellationFee(widget.trip.vehicleType);
+
   void _handleCancel() async {
     final l10n = AppLocalizations.of(context)!;
     final reason = _selectedReason == l10n.reasonOther
@@ -36,6 +46,36 @@ class _TripCancellationScreenState
     if (reason == null || reason.isEmpty) return;
 
     try {
+      // If the driver has already arrived, charge a $5 cancellation fee
+      if (_hasCancellationFee && widget.trip.driverId != null) {
+        final profileRepo = ref.read(profileRepositoryProvider);
+        final tripIdShort = widget.trip.id.length >= 8
+            ? widget.trip.id.substring(0, 8)
+            : widget.trip.id;
+
+        // Charge the passenger
+        await profileRepo.updateWalletBalance(
+          widget.trip.passengerId,
+          _cancellationFee,
+          isIncrement: false,
+          type: 'cancellation_fee',
+          description: 'Cargo por cancelación - Viaje $tripIdShort',
+          tripId: widget.trip.id,
+        );
+
+        // Compensate the driver
+        await profileRepo.updateWalletBalance(
+          widget.trip.driverId!,
+          _cancellationFee,
+          isIncrement: true,
+          type: 'cancellation_fee',
+          description: 'Compensación por cancelación - Viaje $tripIdShort',
+          tripId: widget.trip.id,
+        );
+
+        ref.invalidate(userProfileProvider);
+      }
+
       // Perform cancellation
       await ref
           .read(tripControllerProvider.notifier)
@@ -165,6 +205,33 @@ class _TripCancellationScreenState
           l10n.cancelReasonSubtitle,
           style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
+        if (_hasCancellationFee) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: Colors.red.shade700, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'El conductor ya llegó. Se aplicará un cargo de \$${_cancellationFee.toStringAsFixed(2)} por cancelación.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 32),
         Expanded(
           child: ListView.separated(

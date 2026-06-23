@@ -26,8 +26,11 @@ class PricingService {
   PricingConfig? get config => _config;
 
   /// Returns the free wait minutes for the given vehicle type.
+  /// Signature Lux gets 5 minutes of courtesy; all others get 3 minutes.
   int getFreeWaitMinutes(String vehicleType) {
-    return 1; // User requested 1 minute free
+    final normalized = _normalizeVehicleType(vehicleType);
+    if (normalized == 'signature_lux') return 5;
+    return 3;
   }
 
   /// Returns the wait fee per minute (USD) after the free period.
@@ -36,9 +39,10 @@ class PricingService {
   }
 
   /// Returns the total extra charge for waiting beyond the free window.
-  /// Logic: 1 minute of courtesy, then $1.00 USD per minute.
+  /// Essentials/Executive/XL: 3 minutes of courtesy, then $1.00 USD per minute.
+  /// Signature Lux: 5 minutes of courtesy, then $1.00 USD per minute.
   double calculateWaitFee(String vehicleType, int elapsedSeconds) {
-    const int freeMinutes = 1;
+    final int freeMinutes = getFreeWaitMinutes(vehicleType);
     const double feePerMinute = 1.0;
 
     final freeSeconds = freeMinutes * 60;
@@ -49,6 +53,14 @@ class PricingService {
     return chargeableMinutes * feePerMinute;
   }
 
+  /// Returns the cancellation fee when the driver has already arrived.
+  /// Essentials / Essentials XL → $5.00
+  /// Executive / Signature Lux → $7.00
+  double getCancellationFee(String vehicleType) {
+    final normalized = _normalizeVehicleType(vehicleType);
+    if (normalized == 'executive' || normalized == 'signature_lux') return 7.0;
+    return 5.0;
+  }
   bool _isWeekend() {
     final DateTime now = DateTime.now();
     // Friday is 5, Saturday is 6, Sunday is 7
